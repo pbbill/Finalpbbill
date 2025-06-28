@@ -22,8 +22,22 @@
       .no-print { display: none; }
       body { margin: 0; width: 2.8in; height: auto; }
     }
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <!-- ✅ Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <!-- ✅ Firebase Config -->
+  <script>
+    const firebaseConfig = {
+  apiKey: "AIzaSyBFLzo4TB3wvnUzzriyB3oY4Grw8FMPmXY",
+  authDomain: "panchabyanjan-billing-7ca90.firebaseapp.com",
+  projectId: "panchabyanjan-billing-7ca90",
+  storageBucket: "panchabyanjan-billing-7ca90.firebasestorage.app",
+  messagingSenderId: "892887228821",
+  appId: "1:892887228821:web:96af9e50282ddfc672569c"
+};
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
   </style>
 </head>
 <body>
@@ -87,17 +101,6 @@ To: <input type="date" id="salesTo">
   </div>
 
   <script>
-const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "yourproject.firebaseapp.com",
-  databaseURL: "https://yourproject-default-rtdb.firebaseio.com",
-  projectId: "yourproject",
-  storageBucket: "yourproject.appspot.com",
-  messagingSenderId: "123...",
-  appId: "1:123:web:abc..."
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
     const menu = {
       "Shahi Paneer": 120,
       "Matar Paneer": 100,
