@@ -22,6 +22,8 @@
       .no-print { display: none; }
       body { margin: 0; width: 2.8in; height: auto; }
     }
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   </style>
 </head>
 <body>
@@ -55,7 +57,17 @@
   </div>
 
   <div class="no-print">
-    <button onclick="downloadHistoryCSV()">Download History (CSV)</button>
+<hr>
+<h4>Monthly Billing Report</h4>
+From: <input type="date" id="monthlyFrom">
+To: <input type="date" id="monthlyTo">
+<button onclick="downloadMonthlyReportCSV()">Download Monthly Billing</button>
+
+<h4>Item Sales Report</h4>
+From: <input type="date" id="salesFrom">
+To: <input type="date" id="salesTo">
+<button onclick="downloadItemSalesReportCSV()">Download Item Sales Report</button>
+  <hr>
     <button onclick="viewTodayBills()">View Today's Bills</button>
     <input type="text" id="customerName" placeholder="Customer Name" />
     <input type="text" id="customerMobile" placeholder="Mobile Number" />
@@ -75,6 +87,17 @@
   </div>
 
   <script>
+const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "yourproject.firebaseapp.com",
+  databaseURL: "https://yourproject-default-rtdb.firebaseio.com",
+  projectId: "yourproject",
+  storageBucket: "yourproject.appspot.com",
+  messagingSenderId: "123...",
+  appId: "1:123:web:abc..."
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
     const menu = {
       "Shahi Paneer": 120,
       "Matar Paneer": 100,
@@ -210,6 +233,16 @@
     }
 
     function generateBill() {
+db.ref("bills").push({
+  billNo,
+  date: new Date().toISOString(),
+  name,
+  mobile,
+  items,
+  subtotal,
+  tax,
+  total
+});
       const name = document.getElementById("customerName").value;
       const mobile = document.getElementById("customerMobile").value;
       if (!name || !mobile) return alert("Customer name & mobile required");
@@ -297,6 +330,65 @@
       populateMenu();
       loadLastBillNumber();
     };
+function downloadMonthlyReportCSV() {
+  const from = document.getElementById("monthlyFrom").value;
+  const to = document.getElementById("monthlyTo").value;
+  const history = JSON.parse(localStorage.getItem("billHistory") || "[]");
+  const filtered = history.filter(b => b.date.split("T")[0] >= from && b.date.split("T")[0] <= to);
+  if (filtered.length === 0) return alert("No bills found in this date range");
+
+  const rows = [["Bill No", "Date", "Customer Name", "Mobile", "Items", "Subtotal", "Tax", "Total"]];
+  filtered.forEach(bill => {
+    rows.push([bill.billNo, bill.date, bill.name, bill.mobile, bill.items.join(" | "), bill.subtotal, bill.tax, bill.total]);
+  });
+
+  const csv = rows.map(r => r.join(",")).join("\\n").replace(/\\n/g, "\n");
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'monthly_billing_history.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadItemSalesReportCSV() {
+  const from = document.getElementById("salesFrom").value;
+  const to = document.getElementById("salesTo").value;
+  const history = JSON.parse(localStorage.getItem("billHistory") || "[]");
+  const filtered = history.filter(b => b.date.split("T")[0] >= from && b.date.split("T")[0] <= to);
+  const items = {};
+
+  filtered.forEach(bill => {
+    (bill.items || []).forEach(str => {
+      const match = str.match(/^(.*?)\s*\(x(\d+)\).*₹(\d+)/);
+      if (match) {
+        const name = match[1].trim();
+        const qty = parseInt(match[2]);
+        const amt = parseFloat(match[3]);
+        if (!items[name]) items[name] = { qty: 0, total: 0 };
+        items[name].qty += qty;
+        items[name].total += amt;
+      }
+    });
+  });
+
+  if (Object.keys(items).length === 0) return alert("No sales found in this date range");
+
+  const rows = [["Item", "Quantity Sold", "Total Sales (₹)"]];
+  for (let item in items) {
+    rows.push([item, items[item].qty, items[item].total.toFixed(2)]);
+  }
+
+  const csv = rows.map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'item_sales_report.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
   </script>
 </body>
 </html>
