@@ -149,46 +149,55 @@ window.onload = function () {
   }
 
   function saveLastBillNumber() {
-    const last = parseInt(localStorage.getItem("lastBill") || "1000") + 1;
-    localStorage.setItem("lastBill", last);
-    document.getElementById("billNumber").innerText = last;
-  }
-
+    function saveLastBillNumber(callback) {
+  db.ref("lastBillNo").transaction(current => {
+    return (current || 1000) + 1;
+  }).then(result => {
+    const billNo = result.snapshot.val();
+    document.getElementById("billNumber").innerText = billNo;
+    if (typeof callback === "function") callback(billNo);
+  }).catch(err => {
+    alert("❌ Failed to fetch bill number from Firebase");
+    console.error(err);
+  });
+}
   window.generateBill = function () {
     const name = document.getElementById("customerName").value;
     const mobile = document.getElementById("customerMobile").value;
     if (!name || !mobile) return alert("Customer info required");
     document.getElementById("customerDisplay").innerText = name + " | " + mobile;
-    saveLastBillNumber();
-    renderBill();
+   saveLastBillNumber(function(billNo) {
+  renderBill();
 
-    const tax = parseFloat(document.getElementById("tax").value) || 0;
-    let subtotal = 0;
-    const items = billItems.map(i => {
-      const total = i.qty * i.rate;
-      subtotal += total;
-      return `${i.name} (x${i.qty}) = ₹${total}`;
-    });
-    const taxAmount = subtotal * tax / 100;
-    const total = subtotal + taxAmount;
+  const name = document.getElementById("customerName").value;
+  const mobile = document.getElementById("customerMobile").value;
+  const tax = parseFloat(document.getElementById("tax").value) || 0;
+  let subtotal = 0;
+  const items = billItems.map(i => {
+    const total = i.qty * i.rate;
+    subtotal += total;
+    return `${i.name} (x${i.qty}) = ₹${total}`;
+  });
+  const taxAmount = subtotal * tax / 100;
+  const total = subtotal + taxAmount;
 
-    const bill = {
-      billNo: document.getElementById("billNumber").innerText,
-      date: new Date().toISOString(),
-      name,
-      mobile,
-      items,
-      subtotal,
-      tax: taxAmount,
-      total
-    };
-
-    const history = JSON.parse(localStorage.getItem("billHistory") || "[]");
-    history.push(bill);
-    localStorage.setItem("billHistory", JSON.stringify(history));
-
-    db.ref("bills").push(bill);
+  const bill = {
+    billNo,
+    date: new Date().toISOString(),
+    name,
+    mobile,
+    items,
+    subtotal,
+    tax: taxAmount,
+    total
   };
+
+  const history = JSON.parse(localStorage.getItem("billHistory") || "[]");
+  history.push(bill);
+  localStorage.setItem("billHistory", JSON.stringify(history));
+
+  db.ref("bills").push(bill);
+});
 
   window.downloadHistoryByDateRangeCSV = function () {
     const from = prompt("From date (YYYY-MM-DD)");
