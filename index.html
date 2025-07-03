@@ -10,7 +10,7 @@
      margin-left: auto;
      margin-right: auto;
 }
-    body { font-family: sans-serif; max-width: 500px; margin: auto; padding: 10px; }
+    body { font-family: sans-serif; max-width: 300px; margin: auto; padding: 10px; }
     input, select, button { font-size: 1rem; padding: 10px; margin: 5px 0; width: 100%; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { border: 1px solid #000; padding: 6px; }
@@ -19,13 +19,39 @@
     .qr-code img { width: 100px; height: auto; margin: 0 auto; display: block; }
     .qr-label { font-size: 0.75em; margin-top: 5px; text-align: center; }
     .no-print { display: block; }
-    @media print { .no-print { display: none; } }
+    @media print {
+  body {
+    width: 203px; /* ~2.8 inches */
+    margin: 0;
+    padding: 0;
+    font-size: 6px;
+    line-height: 1.2;
+  }
+  table {
+    font-size: 6px;
+  }
+  th, td {
+    padding: 4px;
+    border: none;
+  }
+  .no-print {
+    display: none !important;
+  }
+  input, select, button {
+    display: none !important;
+  }
+  h2, p, table {
+    margin: 0;
+    padding: 2px 0;
+  }
+}
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-<img src="logo.png" alt="Panchabyanjan Logo" class="center" style="height: 100px; margin-bottom: 5px;">
+<body style="width:203px;">
+<img src="logo.png" alt="Panchabyanjan Logo" class="center" style="height: 60px; margin-bottom: 5px;">
 <h2 style="text-align:center;">Panchabyanjan Restaurant and Caterer</h2>
 <p style="text-align:center;">86 Tarafdarpara Rd, Kolkata-700151</p>
 <p style="text-align:center;">Phone: 6290300741</p>
@@ -276,7 +302,7 @@ window.onload = function () {
 
     if (rows.length === 1) return alert("No bills found in selected date range");
 
-    const csv = rows.map(r => r.join(",")).join("\\n");
+    const csv = rows.map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -297,7 +323,7 @@ window.onload = function () {
       const date = bill.date.split("T")[0];
       if (date >= from && date <= to) {
         bill.items.forEach(entry => {
-          const match = entry.match(/^(.*?)\\s*\\(x(\\d+)\\)\\s*=\\s*₹?(\\d+)/);
+          const match = entry.match(/^(.*?)\s*\(x(\d+)\)\s*=\s*₹?(\d+)/);
           if (match) {
             const name = match[1].trim();
             const qty = parseInt(match[2]);
@@ -317,7 +343,7 @@ window.onload = function () {
       rows.push([name, items[name].qty, items[name].total.toFixed(2)]);
     }
 
-    const csv = rows.map(r => r.join(",")).join("\\n");
+    const csv = rows.map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
