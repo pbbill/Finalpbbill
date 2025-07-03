@@ -349,6 +349,82 @@ window.downloadSettlementReportCSV = function () {
     a.click();
   });
 };
+window.downloadHistoryByDateRangeCSV = function () {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+
+  db.ref("bills").once("value", snapshot => {
+    const allBills = snapshot.val();
+    if (!allBills) return alert("No bills found");
+
+    const rows = [["Bill No", "Date", "Customer", "Mobile", "Items", "Subtotal", "Tax", "Total"]];
+    Object.values(allBills).forEach(b => {
+      const date = b.date?.split("T")[0];
+      if (date >= from && date <= to) {
+        rows.push([
+          b.billNo,
+          b.date,
+          b.name,
+          b.mobile,
+          (b.items || []).join(" | "),
+          b.subtotal,
+          b.tax,
+          b.total
+        ]);
+      }
+    });
+
+    if (rows.length === 1) return alert("No bills found in selected date range");
+
+    const csv = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bill_history.csv";
+    a.click();
+  });
+};
+window.downloadItemSalesReportCSV = function () {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+
+  db.ref("bills").once("value", snapshot => {
+    const allBills = snapshot.val();
+    if (!allBills) return alert("No bills found");
+
+    const items = {};
+    Object.values(allBills).forEach(bill => {
+      const date = bill.date?.split("T")[0];
+      if (date >= from && date <= to) {
+        (bill.items || []).forEach(entry => {
+          const match = entry.match(/^(.*?)\s*\(x(\d+)\)\s*=\s*₹?(\d+)/);
+          if (match) {
+            const name = match[1].trim();
+            const qty = parseInt(match[2]);
+            const amt = parseFloat(match[3]);
+            if (!items[name]) items[name] = { qty: 0, total: 0 };
+            items[name].qty += qty;
+            items[name].total += amt;
+          }
+        });
+      }
+    });
+
+    if (Object.keys(items).length === 0) return alert("No item sales in selected range");
+
+    const rows = [["Item", "Quantity", "Total Sales ₹"]];
+    for (let name in items) {
+      rows.push([name, items[name].qty, items[name].total.toFixed(2)]);
+    }
+
+    const csv = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "item_sales_report.csv";
+    a.click();
+  });
+};
 </script>
 </body>
 </html>
