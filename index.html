@@ -325,21 +325,46 @@ window.downloadSettlementReportCSV = function () {
     if (!allBills) return alert("No bills found");
 
     const rows = [["Bill No", "Date", "Customer", "Total", "Payment Mode", "Transaction ID"]];
+    const summary = { Cash: 0, UPI: 0, Card: 0 };
+    let totalSettled = 0;
+
     Object.values(allBills).forEach(b => {
       const date = b.date?.split("T")[0];
-      if (date >= from && date <= to && b.paymentMode && b.paymentMode !== "Unpaid") {
+      if (
+        date >= from &&
+        date <= to &&
+        b.paymentMode &&
+        b.paymentMode !== "Unpaid"
+      ) {
+        const mode = b.paymentMode;
+        const amt = parseFloat(b.total) || 0;
+
+        if (summary[mode] !== undefined) {
+          summary[mode] += amt;
+        }
+
+        totalSettled += amt;
+
         rows.push([
           b.billNo,
           b.date,
           b.name,
-          b.total,
-          b.paymentMode,
+          amt.toFixed(2),
+          mode,
           b.transactionId || ""
         ]);
       }
     });
 
     if (rows.length === 1) return alert("No settlements in this date range");
+
+    // Add empty row then summary
+    rows.push([]);
+    rows.push(["", "", "Summary"]);
+    for (let mode of ["Cash", "UPI", "Card"]) {
+      rows.push(["", "", `${mode}`, "", summary[mode].toFixed(2)]);
+    }
+    rows.push(["", "", "Total Settled", "", totalSettled.toFixed(2)]);
 
     const csv = rows.map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
