@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <title>Panchabyanjan Billing App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    .center {
+ .center {
      display: block;
      margin-left: auto;
      margin-right: auto;
 }
-    body { font-family: sans-serif; max-width: 300px; margin: auto; padding: 10px; }
+    body { font-family: sans-serif; max-width: 500px; margin: auto; padding: 10px; }
     input, select, button { font-size: 1rem; padding: 10px; margin: 5px 0; width: 100%; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { border: 1px solid #000; padding: 6px; }
-   .total-area { font-weight: bold; margin-top: 5px; border-top: 1px solid black; padding-top: 5px; text-align: right; white-space: pre-line; }
+ .total-area { font-weight: bold; margin-top: 5px; border-top: 1px solid black; padding-top: 5px; text-align: right; white-space: pre-line; }
     .qr-code { text-align: center; margin-top: 10px; }
     .qr-code img { width: 100px; height: auto; margin: 0 auto; display: block; }
     .qr-label { font-size: 0.75em; margin-top: 5px; text-align: center; }
     .no-print { display: block; }
     @media print {
-  body {
+       body {
     width: 203px; /* ~2.8 inches */
     margin: 0;
     padding: 0;
@@ -81,6 +81,20 @@
   <button onclick="window.print()">Print</button>
   <button onclick="downloadHistoryByDateRangeCSV()">Download Bill History</button>
   <button onclick="downloadItemSalesReportCSV()">Download Item Sales</button>
+  <button onclick="downloadSettlementReportCSV()">Download Settlement Report</button>
+  <hr />
+  <button onclick="showSettlementTab()">Settlement</button>
+  <div id="settlementTab" style="display:none;">
+    <select id="billSelect"></select>
+    <select id="settleMode">
+      <option value="">Payment Mode</option>
+      <option value="Cash">Cash</option>
+      <option value="UPI">UPI</option>
+      <option value="Card">Card</option>
+    </select>
+    <input type="text" id="txnId" placeholder="Transaction ID (Optional)" />
+    <button onclick="settleSelectedBill()">Confirm Settlement</button>
+  </div>
 </div>
 
 <script>
@@ -177,10 +191,10 @@ window.onload = function () {
       "Egg Chicken Fried Rice+2pcs Chilli Chicken": 150
   };
   const billItems = [];
-  const menuSelect = document.getElementById("menuSelect");
 
   function renderMenu() {
     const search = document.getElementById("menuSearch").value.toLowerCase();
+    const menuSelect = document.getElementById("menuSelect");
     menuSelect.innerHTML = "";
     Object.keys(menu).forEach(item => {
       if (item.toLowerCase().includes(search)) {
@@ -191,11 +205,12 @@ window.onload = function () {
       }
     });
   }
+
   window.filterMenu = renderMenu;
   renderMenu();
 
   window.addItem = function () {
-    const item = menuSelect.value;
+    const item = document.getElementById("menuSelect").value;
     const qty = parseInt(document.getElementById("qty").value);
     if (!item || !qty) return alert("Select item and quantity");
     billItems.push({ name: item, qty, rate: menu[item] });
@@ -234,27 +249,19 @@ window.onload = function () {
     if (!name || !mobile) return alert("Customer info required");
     document.getElementById("customerDisplay").innerText = name + " | " + mobile;
 
-    try {
-      db.ref("lastBillNo").transaction(curr => (curr || 1000) + 1).then(res => {
-        const billNo = res.snapshot.val();
-        document.getElementById("billNumber").innerText = billNo;
-        saveAndStoreBill(billNo, name, mobile);
-      }).catch(() => {
-        const localBill = parseInt(localStorage.getItem("lastBill") || "1000") + 1;
-        localStorage.setItem("lastBill", localBill);
-        document.getElementById("billNumber").innerText = localBill;
-        saveAndStoreBill(localBill, name, mobile);
-      });
-    } catch {
+    db.ref("lastBillNo").transaction(curr => (curr || 1000) + 1).then(res => {
+      const billNo = res.snapshot.val();
+      document.getElementById("billNumber").innerText = billNo;
+      saveAndStoreBill(billNo, name, mobile);
+    }).catch(() => {
       const localBill = parseInt(localStorage.getItem("lastBill") || "1000") + 1;
       localStorage.setItem("lastBill", localBill);
       document.getElementById("billNumber").innerText = localBill;
       saveAndStoreBill(localBill, name, mobile);
-    }
+    });
   };
 
   function saveAndStoreBill(billNo, name, mobile) {
-    renderBill();
     const tax = parseFloat(document.getElementById("tax").value) || 0;
     let subtotal = 0;
     const items = billItems.map(i => {
@@ -264,93 +271,83 @@ window.onload = function () {
     });
     const taxAmt = subtotal * tax / 100;
     const grandTotal = subtotal + taxAmt;
-
     const bill = {
-      billNo, date: new Date().toISOString(), name, mobile, items,
-      subtotal, tax: taxAmt, total: grandTotal
+      billNo,
+      date: new Date().toISOString(),
+      name,
+      mobile,
+      items,
+      subtotal,
+      tax: taxAmt,
+      total: grandTotal,
+      paymentMode: "Unpaid"
     };
-
     const history = JSON.parse(localStorage.getItem("billHistory") || "[]");
     history.push(bill);
     localStorage.setItem("billHistory", JSON.stringify(history));
-    try { db.ref("bills").push(bill); } catch {}
+    db.ref("bills").push(bill);
   }
 
-  window.downloadHistoryByDateRangeCSV = function () {
+  window.showSettlementTab = function () {
+    document.getElementById("settlementTab").style.display = "block";
+    db.ref("bills").once("value", snapshot => {
+      const allBills = snapshot.val();
+      const select = document.getElementById("billSelect");
+      select.innerHTML = "<option value=''>Select Bill</option>";
+      Object.entries(allBills || {}).forEach(([key, bill]) => {
+        if (!bill.paymentMode || bill.paymentMode === "Unpaid") {
+          select.innerHTML += `<option value="${key}">Bill#${bill.billNo} - ₹${bill.total} (${bill.name})</option>`;
+        }
+      });
+    });
+  };
+
+  window.settleSelectedBill = function () {
+    const key = document.getElementById("billSelect").value;
+    const mode = document.getElementById("settleMode").value;
+    const txnId = document.getElementById("txnId").value;
+    if (!key || !mode) return alert("Select bill and mode");
+    db.ref("bills/" + key).update({ paymentMode: mode, transactionId: txnId || "" }, err => {
+      if (err) alert("Error saving settlement");
+      else {
+        alert("Settlement saved");
+        showSettlementTab();
+      }
+    });
+  };
+};
+window.downloadSettlementReportCSV = function () {
   const from = prompt("From date (YYYY-MM-DD)");
   const to = prompt("To date (YYYY-MM-DD)");
+
   db.ref("bills").once("value", snapshot => {
     const allBills = snapshot.val();
-    if (!allBills) return alert("No bills found in database");
+    if (!allBills) return alert("No bills found");
 
-    const rows = [["Bill No","Date","Customer","Mobile","Items","Subtotal","Tax","Total"]];
-    Object.values(allBills).forEach(bill => {
-      const date = bill.date.split("T")[0];
-      if (date >= from && date <= to) {
+    const rows = [["Bill No", "Date", "Customer", "Total", "Payment Mode", "Transaction ID"]];
+    Object.values(allBills).forEach(b => {
+      const date = b.date?.split("T")[0];
+      if (date >= from && date <= to && b.paymentMode && b.paymentMode !== "Unpaid") {
         rows.push([
-          bill.billNo,
-          bill.date,
-          bill.name,
-          bill.mobile,
-          bill.items.join(" | "),
-          bill.subtotal,
-          bill.tax,
-          bill.total
+          b.billNo,
+          b.date,
+          b.name,
+          b.total,
+          b.paymentMode,
+          b.transactionId || ""
         ]);
       }
     });
 
-    if (rows.length === 1) return alert("No bills found in selected date range");
+    if (rows.length === 1) return alert("No settlements in this date range");
 
     const csv = rows.map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "bill_history.csv";
+    a.download = "settlement_report.csv";
     a.click();
   });
-};
-
-  window.downloadItemSalesReportCSV = function () {
-  const from = prompt("From date (YYYY-MM-DD)");
-  const to = prompt("To date (YYYY-MM-DD)");
-  db.ref("bills").once("value", snapshot => {
-    const allBills = snapshot.val();
-    if (!allBills) return alert("No bills found in database");
-
-    const items = {};
-    Object.values(allBills).forEach(bill => {
-      const date = bill.date.split("T")[0];
-      if (date >= from && date <= to) {
-        bill.items.forEach(entry => {
-          const match = entry.match(/^(.*?)\s*\(x(\d+)\)\s*=\s*₹?(\d+)/);
-          if (match) {
-            const name = match[1].trim();
-            const qty = parseInt(match[2]);
-            const amt = parseFloat(match[3]);
-            if (!items[name]) items[name] = { qty: 0, total: 0 };
-            items[name].qty += qty;
-            items[name].total += amt;
-          }
-        });
-      }
-    });
-
-    if (Object.keys(items).length === 0) return alert("No item sales found in selected range");
-
-    const rows = [["Item", "Qty", "Sales ₹"]];
-    for (let name in items) {
-      rows.push([name, items[name].qty, items[name].total.toFixed(2)]);
-    }
-
-    const csv = rows.map(r => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "item_sales_report.csv";
-    a.click();
-  });
-};
 };
 </script>
 </body>
