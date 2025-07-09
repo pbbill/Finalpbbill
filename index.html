@@ -114,6 +114,28 @@
   <button onclick="viewKOTLog()">📑 KOT Log</button>
   <button onclick="showManageBillsTab()">🔧 Manage Bills</button>
   <button onclick="showManageKOTsTab()">🧾 Manage KOTs</button>
+<!-- 👨‍💼 Admin: Manage Users -->
+<div id="manageUsersTab" class="no-print" style="display:none; margin-top:20px;">
+  <h3>👤 Manage Users</h3>
+  <input type="text" id="newUsername" placeholder="New Username" />
+  <input type="password" id="newPassword" placeholder="Password" />
+  <select id="roleSel"><option value="">Select Role</option></select>
+  <button onclick="addUser()">➕ Add User</button>
+  <div id="userList"></div>
+</div>
+
+<!-- 🔐 Admin: Manage Roles -->
+<div id="manageRolesTab" class="no-print" style="display:none; margin-top:20px;">
+  <h3>🔑 Manage Roles</h3>
+  <input type="text" id="newRole" placeholder="Role Name (e.g., admin, staff)" />
+  <label><input type="checkbox" id="permBill" /> Billing</label><br />
+  <label><input type="checkbox" id="permReport" /> Reports</label><br />
+  <label><input type="checkbox" id="permSettlement" /> Settlement</label><br />
+  <label><input type="checkbox" id="permKOT" /> KOT</label><br />
+  <button onclick="addRole()">➕ Add/Update Role</button>
+  <div id="roleList"></div>
+</div>
+
   <h3>Reprint Bill</h3>
   <select id="reprintSelect"></select>
   <button onclick="loadAndPrintBill()">Reprint</button>
