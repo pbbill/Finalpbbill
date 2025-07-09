@@ -114,80 +114,6 @@
   <button onclick="viewKOTLog()">📑 KOT Log</button>
   <button onclick="showManageBillsTab()">🔧 Manage Bills</button>
   <button onclick="showManageKOTsTab()">🧾 Manage KOTs</button>
-<script>
-function addUser() {
-  const uname = document.getElementById("newUsername").value;
-  const pwd = document.getElementById("newPassword").value;
-  const role = document.getElementById("roleSel").value;
-  if (!uname || !pwd || !role) return alert("All fields required");
-  const user = { username: uname, password: pwd, role };
-  db.ref("users").push(user);
-  alert("User added");
-  loadUsers();
-}
-
-function addRole() {
-  const role = document.getElementById("newRole").value;
-  const perms = {
-    billing: document.getElementById("permBill").checked,
-    reports: document.getElementById("permReport").checked,
-    settlement: document.getElementById("permSettlement").checked,
-    kot: document.getElementById("permKOT").checked
-  };
-  db.ref("roles/" + role).set(perms);
-  alert("Role added/updated");
-  loadRoles();
-}
-
-function loadRoles() {
-  const sel = document.getElementById("roleSel");
-  sel.innerHTML = "<option value=''>Select Role</option>";
-  db.ref("roles").once("value", snap => {
-    const all = snap.val();
-    Object.keys(all || {}).forEach(r => {
-      const opt = document.createElement("option");
-      opt.value = r;
-      opt.textContent = r;
-      sel.appendChild(opt);
-    });
-
-    displayRoleList(all || {});
-  });
-}
-
-function loadUsers() {
-  db.ref("users").once("value", snap => {
-    const div = document.getElementById("userList");
-    div.innerHTML = "<h4>Existing Users:</h4>";
-    Object.values(snap.val() || {}).forEach(u => {
-      div.innerHTML += `<p>👤 ${u.username} — ${u.role}</p>`;
-    });
-  });
-}
-
-function displayRoleList(data) {
-  const div = document.getElementById("roleList");
-  div.innerHTML = "<h4>Existing Roles:</h4>";
-  Object.entries(data).forEach(([r, perms]) => {
-    div.innerHTML += `<p>🔑 ${r} — ${Object.keys(perms).filter(p => perms[p]).join(", ")}</p>`;
-  });
-}
-
-// Show these sections if admin
-window.onload = function () {
-  filterMenu?.();
-  populateReprintDropdown?.();
-  loadRoles();
-  loadUsers();
-
-  const user = JSON.parse(localStorage.getItem("loggedInUser"));
-  if (user?.role === "admin") {
-    document.getElementById("manageUsersTab").style.display = "block";
-    document.getElementById("manageRolesTab").style.display = "block";
-  }
-};
-</script>
-
   <h3>Reprint Bill</h3>
   <select id="reprintSelect"></select>
   <button onclick="loadAndPrintBill()">Reprint</button>
@@ -350,6 +276,80 @@ window.onload = function () {
     localStorage.removeItem("loggedInUser");
     window.location.href = "https://pbbill.github.io/Finalpbbill/login.html";
   }
+<script>
+function addUser() {
+  const uname = document.getElementById("newUsername").value;
+  const pwd = document.getElementById("newPassword").value;
+  const role = document.getElementById("roleSel").value;
+  if (!uname || !pwd || !role) return alert("All fields required");
+  const user = { username: uname, password: pwd, role };
+  db.ref("users").push(user);
+  alert("User added");
+  loadUsers();
+}
+
+function addRole() {
+  const role = document.getElementById("newRole").value;
+  const perms = {
+    billing: document.getElementById("permBill").checked,
+    reports: document.getElementById("permReport").checked,
+    settlement: document.getElementById("permSettlement").checked,
+    kot: document.getElementById("permKOT").checked
+  };
+  db.ref("roles/" + role).set(perms);
+  alert("Role added/updated");
+  loadRoles();
+}
+
+function loadRoles() {
+  const sel = document.getElementById("roleSel");
+  sel.innerHTML = "<option value=''>Select Role</option>";
+  db.ref("roles").once("value", snap => {
+    const all = snap.val();
+    Object.keys(all || {}).forEach(r => {
+      const opt = document.createElement("option");
+      opt.value = r;
+      opt.textContent = r;
+      sel.appendChild(opt);
+    });
+
+    displayRoleList(all || {});
+  });
+}
+
+function loadUsers() {
+  db.ref("users").once("value", snap => {
+    const div = document.getElementById("userList");
+    div.innerHTML = "<h4>Existing Users:</h4>";
+    Object.values(snap.val() || {}).forEach(u => {
+      div.innerHTML += `<p>👤 ${u.username} — ${u.role}</p>`;
+    });
+  });
+}
+
+function displayRoleList(data) {
+  const div = document.getElementById("roleList");
+  div.innerHTML = "<h4>Existing Roles:</h4>";
+  Object.entries(data).forEach(([r, perms]) => {
+    div.innerHTML += `<p>🔑 ${r} — ${Object.keys(perms).filter(p => perms[p]).join(", ")}</p>`;
+  });
+}
+
+// Show these sections if admin
+window.onload = function () {
+  filterMenu?.();
+  populateReprintDropdown?.();
+  loadRoles();
+  loadUsers();
+
+  const user = JSON.parse(localStorage.getItem("loggedInUser"));
+  if (user?.role === "admin") {
+    document.getElementById("manageUsersTab").style.display = "block";
+    document.getElementById("manageRolesTab").style.display = "block";
+  }
+};
+</script>
+
 </script>
 <script>
 function generateKOT(billNo, items) {
