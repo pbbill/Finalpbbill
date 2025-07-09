@@ -2,50 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>🔐 Panchabyanjan Login</title>
+  <title>Login | Panchabyanjan Billing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     body {
       font-family: sans-serif;
-      max-width: 400px;
+      max-width: 360px;
       margin: 80px auto;
       padding: 20px;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      background: #f9f9f9;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
+      border-radius: 6px;
     }
     input, button {
       width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      font-size: 1rem;
-    }
-    button {
-      background-color: #ff6600;
-      border: none;
-      color: white;
-      cursor: pointer;
-    }
-    .error {
-      color: red;
-      font-size: 0.9rem;
-      text-align: center;
+      padding: 10px;
       margin-top: 10px;
+      font-size: 16px;
     }
+    h2 { text-align: center; }
   </style>
 </head>
 <body>
-  <h2>🔐 Login to Panchabyanjan</h2>
+  <h2>🔐 Panchabyanjan Login</h2>
   <input type="text" id="username" placeholder="Username" />
   <input type="password" id="password" placeholder="Password" />
   <button onclick="login()">Login</button>
-  <div id="errorMsg" class="error"></div>
+  <p id="message" style="color:red;"></p>
 
   <script>
     const firebaseConfig = {
@@ -61,24 +45,21 @@
     const db = firebase.database();
 
     function login() {
-      const username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value.trim();
-      const errorMsg = document.getElementById("errorMsg");
+      const u = document.getElementById("username").value;
+      const p = document.getElementById("password").value;
+      db.ref("users").orderByChild("username").equalTo(u).once("value", snap => {
+        const users = snap.val();
+        if (!users) return showMsg("User not found");
+        const userObj = Object.values(users)[0];
+        if (userObj.password !== p) return showMsg("Incorrect password");
 
-      if (!username || !password) {
-        errorMsg.textContent = "Please enter both username and password.";
-        return;
-      }
-
-      db.ref("users/" + username).once("value", snapshot => {
-        const user = snapshot.val();
-        if (!user || user.password !== password) {
-          errorMsg.textContent = "Invalid username or password.";
-        } else {
-          localStorage.setItem("loggedInUser", JSON.stringify({ username, role: user.role }));
-          window.location.href = "https://pbbill.github.io/Finalpbbill/index.html";  // ✅ Update this path as needed
-        }
+        localStorage.setItem("loggedInUser", JSON.stringify(userObj));
+        window.location.href = "index.html"; // Change path if needed
       });
+    }
+
+    function showMsg(msg) {
+      document.getElementById("message").innerText = msg;
     }
   </script>
 </body>
