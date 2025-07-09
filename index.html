@@ -116,6 +116,7 @@
     <button onclick="previewBillHistory()">🔍 Preview Bill History</button>
     <button onclick="previewItemSalesReport()">📦 Preview Item Sales</button>
     <button onclick="viewKOTLog()">📒 KOT Log</button>
+<button id="saveEditBtn" style="display:none;" onclick="saveEditedBill()">💾 Save Changes</button>
   </div>
   <div class="bill-controls no-print">
     <input type="text" id="customerName" placeholder="Customer Name" />
@@ -153,7 +154,13 @@
 
   <!-- Admin Tabs -->
   <div id="manageBillsTab" class="no-print"></div>
+<h3>Manage Bills</h3>
+  <div id="billManager"></div>
+</div>
   <div id="manageKOTsTab" class="no-print"></div>
+<h3>Manage KOTs</h3>
+  <div id="kotManager"></div>
+</div>
   <div id="manageUsersTab" class="no-print"></div>
   <div id="manageRolesTab" class="no-print"></div>
 
@@ -304,14 +311,39 @@ function renderBill() {
   billItems.forEach(({ name, qty, rate }) => {
     const total = qty * rate;
     subtotal += total;
-    tbody.innerHTML += `<tr><td>${name}</td><td>${qty}</td><td>${rate}</td><td>${total.toFixed(2)}</td></tr>`;
+    tbody.innerHTML += `
+      <tr>
+        <td>${name}</td>
+        <td>
+          <input type="number" value="${qty}" min="1" style="width: 50px;" 
+                 onchange="updateItemQty(${index}, this.value)" />
+        </td>
+        <td>${rate}</td>
+        <td>${total.toFixed(2)}</td>
+        <td><button onclick="removeItem(${index})">❌</button></td>
+      </tr>
+    `;
   });
+
   const tax = parseFloat(document.getElementById("tax").value) || 0;
   const taxAmt = subtotal * tax / 100;
   const grandTotal = subtotal + taxAmt;
   document.getElementById("subtotal").innerText = subtotal.toFixed(2);
   document.getElementById("taxAmount").innerText = taxAmt.toFixed(2);
   document.getElementById("grandTotal").innerText = grandTotal.toFixed(2);
+}
+function updateItemQty(index, newQty) {
+  const qty = parseInt(newQty);
+  if (!qty || qty < 1) return;
+  billItems[index].qty = qty;
+  renderBill();
+}
+
+function removeItem(index) {
+  if (confirm("Remove this item?")) {
+    billItems.splice(index, 1);
+    renderBill();
+  }
 }
 function generateBill() {
   const name = document.getElementById("customerName").value;
@@ -351,6 +383,9 @@ function saveAndStoreBill(billNo, name, mobile) {
     total,
     paymentMode: "Unpaid"
   };
+const history = JSON.parse(localStorage.getItem("billHistory") || "[]");
+  history.push(bill);
+  localStorage.setItem("billHistory", JSON.stringify(history));
   db.ref("bills").push(bill);
   generateKOT(billNo, items);
 }
@@ -374,8 +409,8 @@ function generateKOT(billNo, items) {
 
     const kotText = `
       <div style="width: 203px; font-size: 10px; font-family: monospace;">
-      <p style="text-align:center;">Panchabyanjan Restaurant and Caterer</p>
-      <p style="text-align:center;">KOT</p>
+      <h3 style="text-align:center;">Panchabyanjan Restaurant and Caterer</h3>
+      <h3 style="text-align:center;">KOT</h3>
         <p>KOT No: ${kotNo}</p>
         <p>Bill No: ${billNo}</p>
         <hr />
@@ -394,20 +429,424 @@ function generateKOT(billNo, items) {
 }
 function printAndReset() {
   window.onafterprint = () => {
-    billItems = [];
-    ["customerName", "customerMobile", "tax", "menuSearch"].forEach(id => document.getElementById(id).value = "");
+    billItems.length = 0;
+    document.getElementById("customerName").value = "";
+    document.getElementById("customerMobile").value = "";
+    document.getElementById("tax").value = "";
+    document.getElementById("menuSearch").value = "";
     document.getElementById("qty").value = 1;
     document.getElementById("billNumber").innerText = "---";
     document.getElementById("customerDisplay").innerText = "";
     document.querySelector("#billTable tbody").innerHTML = "";
-    ["subtotal", "taxAmount", "grandTotal"].forEach(id => document.getElementById(id).innerText = "0");
+    document.getElementById("subtotal").innerText = "0";
+    document.getElementById("taxAmount").innerText = "0";
+    document.getElementById("grandTotal").innerText = "0";
     filterMenu();
+    populateReprintDropdown();
+    document.getElementById("customerName").focus(); // optional
   };
-  window.print();
+  window.print();  // ✅ after setting handler
 }
-window.onload = () => {
+
+function populateReprintDropdown() {
+  db.ref("bills").once("value", snap => {
+    const all = snap.val();
+    const select = document.getElementById("reprintSelect");
+    select.innerHTML = "<option value=''>Select Bill</option>";
+    Object.entries(all || {}).forEach(([key, bill]) => {
+      select.innerHTML += `<option value="${key}">#${bill.billNo} - ${bill.name} - ${bill.date?.split("T")[0]}</option>`;
+    });
+  });
+}
+
+function loadAndPrintBill() {
+  const key = document.getElementById("reprintSelect").value;
+  if (!key) return alert("Select a bill to reprint");
+  db.ref("bills/" + key).once("value", snap => {
+    const bill = snap.val();
+    if (!bill) return alert("Bill not found");
+
+    document.getElementById("billNumber").innerText = bill.billNo;
+    document.getElementById("customerDisplay").innerText = bill.name + " | " + bill.mobile;
+
+    const tbody = document.querySelector("#billTable tbody");
+    tbody.innerHTML = "";
+    (bill.items || []).forEach(line => {
+      const match = line.match(/^(.*?) \(x(\d+)\) = ₹(\d+(?:\.\d+)?)/);
+      if (match) {
+        const name = match[1], qty = match[2], rate = (parseFloat(match[3]) / parseInt(qty)).toFixed(2);
+        const total = parseFloat(match[3]);
+        tbody.innerHTML += `<tr><td>${name}</td><td>${qty}</td><td>${rate}</td><td>${total}</td></tr>`;
+      }
+    });
+
+    document.getElementById("subtotal").innerText = bill.subtotal.toFixed(2);
+    document.getElementById("taxAmount").innerText = bill.tax.toFixed(2);
+    document.getElementById("grandTotal").innerText = bill.total.toFixed(2);
+
+    setTimeout(() => window.print(), 500);
+  });
+}
+
+window.onload = function () {
   filterMenu();
+  populateReprintDropdown();
 };
+function saveEditedBill() {
+  if (!editingBillKey) return alert("No bill in edit mode.");
+
+  const name = document.getElementById("customerName").value;
+  const mobile = document.getElementById("customerMobile").value;
+  const billNo = document.getElementById("billNumber").innerText;
+  const tax = parseFloat(document.getElementById("tax").value) || 0;
+
+  let subtotal = 0;
+  const items = billItems.map(i => {
+    const total = i.qty * i.rate;
+    subtotal += total;
+    return `${i.name} (x${i.qty}) = ₹${total}`;
+  });
+
+  const taxAmt = subtotal * tax / 100;
+  const total = subtotal + taxAmt;
+
+  const bill = {
+    billNo,
+    date: new Date().toISOString(),
+    name,
+    mobile,
+    items,
+    subtotal,
+    tax: taxAmt,
+    total,
+    paymentMode: "Unpaid"
+  };
+
+  db.ref("bills/" + editingBillKey).set(bill, err => {
+    if (err) alert("Failed to save changes.");
+    else {
+      alert("Changes saved successfully.");
+      document.getElementById("saveEditBtn").style.display = "none";
+      editingBillKey = null;
+    }
+  });
+}
+</script>
+<!-- Part 3 continues below -->
+<script>
+// ==== SETTLEMENT ====
+function showSettlementTab() {
+  document.getElementById("settlementTab").style.display = "block";
+  db.ref("bills").once("value", snapshot => {
+    const allBills = snapshot.val();
+    const select = document.getElementById("billSelect");
+    select.innerHTML = "<option value=''>Select Bill</option>";
+    Object.entries(allBills || {}).forEach(([key, bill]) => {
+      if (!bill.paymentMode || bill.paymentMode === "Unpaid") {
+        select.innerHTML += `<option value="${key}">Bill#${bill.billNo} - ₹${bill.total} (${bill.name})</option>`;
+      }
+    });
+  });
+}
+
+function settleSelectedBill() {
+  const key = document.getElementById("billSelect").value;
+  const mode = document.getElementById("settleMode").value;
+  const txnId = document.getElementById("txnId").value;
+  if (!key || !mode) return alert("Select bill and mode");
+  db.ref("bills/" + key).update({ paymentMode: mode, transactionId: txnId || "" }, err => {
+    if (err) alert("Error saving settlement");
+    else {
+      alert("Settlement saved");
+      showSettlementTab();
+    }
+  });
+}
+
+// ==== CSV EXPORT ====
+function downloadCSV(data, filename) {
+  const csv = data.map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+function downloadHistoryByDateRangeCSV() {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+  db.ref("bills").once("value", snap => {
+    const all = snap.val();
+    const rows = [["Bill No", "Date", "Customer", "Mobile", "Total"]];
+    Object.values(all || {}).forEach(b => {
+      const d = b.date?.split("T")[0];
+      if (d >= from && d <= to) {
+        rows.push([b.billNo, b.date, b.name, b.mobile, b.total]);
+      }
+    });
+    downloadCSV(rows, `bill_history_${from}_to_${to}.csv`);
+  });
+}
+
+function downloadItemSalesReportCSV() {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+  db.ref("bills").once("value", snap => {
+    const all = snap.val();
+    const itemsMap = {};
+    Object.values(all || {}).forEach(b => {
+      const d = b.date?.split("T")[0];
+      if (d >= from && d <= to) {
+        (b.items || []).forEach(line => {
+          const match = line.match(/^(.*?) \(x(\d+)\) = ₹(\d+(\.\d+)?)/);
+          if (match) {
+            const name = match[1];
+            const qty = parseInt(match[2]);
+            const amt = parseFloat(match[3]);
+            if (!itemsMap[name]) itemsMap[name] = { qty: 0, amt: 0 };
+            itemsMap[name].qty += qty;
+            itemsMap[name].amt += amt;
+          }
+        });
+      }
+    });
+    const rows = [["Item", "Quantity", "Amount"]];
+    Object.entries(itemsMap).forEach(([name, { qty, amt }]) => {
+      rows.push([name, qty, amt.toFixed(2)]);
+    });
+    downloadCSV(rows, `item_sales_${from}_to_${to}.csv`);
+  });
+}
+
+function downloadSettlementReportCSV() {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+  db.ref("bills").once("value", snapshot => {
+    const allBills = snapshot.val();
+    if (!allBills) return alert("No bills found");
+
+    const rows = [["Bill No", "Date", "Customer", "Total", "Payment Mode", "Transaction ID"]];
+    const summary = { Cash: 0, UPI: 0, Card: 0 };
+    let totalSettled = 0;
+
+    Object.values(allBills).forEach(b => {
+      const date = b.date?.split("T")[0];
+      if (date >= from && date <= to && b.paymentMode && b.paymentMode !== "Unpaid") {
+        const mode = b.paymentMode;
+        const amt = parseFloat(b.total) || 0;
+        if (summary[mode] !== undefined) summary[mode] += amt;
+        totalSettled += amt;
+        rows.push([b.billNo, b.date, b.name, amt.toFixed(2), mode, b.transactionId || ""]);
+      }
+    });
+
+    rows.push([], ["Summary"]);
+    Object.entries(summary).forEach(([k, v]) => rows.push([k, v.toFixed(2)]));
+    rows.push(["Total Settled", totalSettled.toFixed(2)]);
+    downloadCSV(rows, `settlement_report_${from}_to_${to}.csv`);
+  });
+}
+
+// ==== PREVIEW REPORTS ====
+function previewBillHistory() {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+  db.ref("bills").once("value", snap => {
+    const all = snap.val();
+    const rows = [["Bill No", "Date", "Customer", "Mobile", "Total"]];
+    Object.values(all || {}).forEach(b => {
+      const d = b.date?.split("T")[0];
+      if (d >= from && d <= to) {
+        rows.push([b.billNo, b.date, b.name, b.mobile, b.total]);
+      }
+    });
+    displayInViewer(rows, "Bill History Report");
+  });
+}
+
+function previewItemSalesReport() {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+  db.ref("bills").once("value", snap => {
+    const all = snap.val();
+    const itemsMap = {};
+    Object.values(all || {}).forEach(b => {
+      const d = b.date?.split("T")[0];
+      if (d >= from && d <= to) {
+        (b.items || []).forEach(line => {
+          const match = line.match(/^(.*?) \(x(\d+)\) = ₹(\d+(\.\d+)?)/);
+          if (match) {
+            const name = match[1];
+            const qty = parseInt(match[2]);
+            const amt = parseFloat(match[3]);
+            if (!itemsMap[name]) itemsMap[name] = { qty: 0, amt: 0 };
+            itemsMap[name].qty += qty;
+            itemsMap[name].amt += amt;
+          }
+        });
+      }
+    });
+    const rows = [["Item", "Quantity", "Amount"]];
+    Object.entries(itemsMap).forEach(([name, { qty, amt }]) => {
+      rows.push([name, qty, amt.toFixed(2)]);
+    });
+    displayInViewer(rows, "Item Sales Report");
+  });
+}
+
+function displayInViewer(rows, title) {
+  const container = document.getElementById("reportViewer");
+  container.innerHTML = `<h3>${title}</h3>`;
+  const table = document.createElement("table");
+  table.innerHTML = rows.map((r, i) =>
+    `<tr>${r.map(col =>
+      `<${i === 0 ? "th" : "td"}>${col}</${i === 0 ? "th" : "td"}>`).join("")
+    }</tr>`
+  ).join("");
+  container.appendChild(table);
+  container.style.display = "block";
+}
+
+// ==== KOT LOG ====
+function viewKOTLog() {
+  const from = prompt("From date (YYYY-MM-DD)");
+  const to = prompt("To date (YYYY-MM-DD)");
+  db.ref("kots").once("value", snap => {
+    const all = snap.val();
+    const rows = [["KOT No", "Bill No", "Items", "Created"]];
+    Object.values(all || {}).forEach(k => {
+      const d = k.createdAt?.split("T")[0];
+      if (d >= from && d <= to) {
+        rows.push([k.kotNo, k.billNo, (k.items || []).join(" / "), k.createdAt]);
+      }
+    });
+    const viewer = document.getElementById("kotLogViewer");
+    viewer.innerHTML = `<h3>KOT Log</h3>`;
+    const table = document.createElement("table");
+    table.innerHTML = rows.map((r, i) =>
+      `<tr>${r.map(col =>
+        `<${i === 0 ? "th" : "td"}>${col}</${i === 0 ? "th" : "td"}>`).join("")
+      }</tr>`
+    ).join("");
+    viewer.appendChild(table);
+    viewer.style.display = "block";
+  });
+}
+
+// ==== ADMIN BILL/KOT MANAGERS ====
+function showManageBillsTab() {
+  document.getElementById("manageBillsTab").style.display = "block";
+  document.getElementById("manageKOTsTab").style.display = "none";
+  const container = document.getElementById("billManager");
+  container.innerHTML = "Loading...";
+  db.ref("bills").once("value", snap => {
+    const bills = snap.val();
+    if (!bills) return container.innerHTML = "No bills found.";
+
+    const table = document.createElement("table");
+    table.innerHTML = `<tr><th>Bill No</th><th>Customer</th><th>Total</th><th>Date</th><th>Actions</th></tr>`;
+    Object.entries(bills).forEach(([key, bill]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${bill.billNo}</td>
+        <td>${bill.name}</td>
+        <td>₹${bill.total}</td>
+        <td>${bill.date?.split("T")[0]}</td>
+        <td>
+          <button onclick="loadBillForEdit('${key}')">Edit</button>
+          <button onclick="deleteBill('${key}')">Delete</button>
+        </td>
+      `;
+      table.appendChild(tr);
+    });
+
+    container.innerHTML = "";
+    container.appendChild(table);
+  });
+}
+
+function loadBillForEdit(key) {
+  db.ref("bills/" + key).once("value", snap => {
+    const bill = snap.val();
+    if (!bill) return alert("Bill not found");
+
+    editingBillKey = key;
+    document.getElementById("saveEditBtn").style.display = "block";
+
+    document.getElementById("customerName").value = bill.name;
+    document.getElementById("customerMobile").value = bill.mobile;
+    document.getElementById("tax").value = ((bill.tax / bill.subtotal) * 100).toFixed(2) || 0;
+    document.getElementById("billNumber").innerText = bill.billNo;
+    document.getElementById("customerDisplay").innerText = bill.name + " | " + bill.mobile;
+
+    billItems.length = 0;
+    (bill.items || []).forEach(line => {
+      const match = line.match(/^(.*?) \(x(\d+)\) = ₹(\d+(?:\.\d+)?)/);
+      if (match) {
+        const name = match[1], qty = parseInt(match[2]), total = parseFloat(match[3]);
+        const rate = total / qty;
+        billItems.push({ name, qty, rate });
+      }
+    });
+
+    renderBill();
+    alert("Bill loaded. Make changes and click Save.");
+  });
+}
+
+function deleteBill(key) {
+  if (confirm("Delete this bill?")) {
+    db.ref("bills/" + key).remove(err => {
+      if (err) alert("Error deleting bill");
+      else {
+        alert("Deleted");
+        showManageBillsTab();
+      }
+    });
+  }
+}
+
+function showManageKOTsTab() {
+  document.getElementById("manageKOTsTab").style.display = "block";
+  document.getElementById("manageBillsTab").style.display = "none";
+  const container = document.getElementById("kotManager");
+  container.innerHTML = "Loading...";
+  db.ref("kots").once("value", snap => {
+    const kots = snap.val();
+    if (!kots) return container.innerHTML = "No KOTs found.";
+
+    const table = document.createElement("table");
+    table.innerHTML = `<tr><th>KOT No</th><th>Bill No</th><th>Items</th><th>Time</th><th>Actions</th></tr>`;
+    Object.entries(kots).forEach(([key, kot]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${kot.kotNo}</td>
+        <td>${kot.billNo}</td>
+        <td>${(kot.items || []).join(" / ")}</td>
+        <td>${kot.createdAt?.split("T")[0]}</td>
+        <td><button onclick="deleteKOT('${key}')">Delete</button></td>
+      `;
+      table.appendChild(tr);
+    });
+
+    container.innerHTML = "";
+    container.appendChild(table);
+  });
+}
+
+function deleteKOT(key) {
+  if (confirm("Delete this KOT?")) {
+    db.ref("kots/" + key).remove(err => {
+      if (err) alert("Error deleting KOT");
+      else {
+        alert("Deleted");
+        showManageKOTsTab();
+    }
+  });
+ }
+}
+
 function showManageUsersTab() {
   document.getElementById("manageUsersTab").style.display = "block";
   document.getElementById("manageRolesTab").style.display = "none";
