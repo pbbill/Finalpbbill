@@ -10,7 +10,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
+      background-color: #f5f5f5;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -20,8 +20,8 @@
     .login-box {
       background: white;
       padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       width: 100%;
       max-width: 400px;
     }
@@ -32,8 +32,8 @@
     input, button {
       width: 100%;
       padding: 10px;
-      font-size: 16px;
       margin-top: 10px;
+      font-size: 16px;
       box-sizing: border-box;
     }
     #errorMsg {
@@ -53,22 +53,21 @@
   </div>
 
   <script>
-    // ✅ Your Firebase config here
     const firebaseConfig = {
-      apiKey: "AIzaSyBFLzo4TB3wvnUzzriyB3oY4Grw8FMPmXY",
-  authDomain: "panchabyanjan-billing-7ca90.firebaseapp.com",
-  databaseURL: "https://panchabyanjan-billing-7ca90-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "panchabyanjan-billing-7ca90",
-  storageBucket: "panchabyanjan-billing-7ca90.firebasestorage.app",
-  messagingSenderId: "892887228821",
-  appId: "1:892887228821:web:96af9e50282ddfc672569c"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     function handleLogin() {
-      const u = document.getElementById("username").value.trim();
-      const p = document.getElementById("password").value.trim();
+      const u = username.value.trim();
+      const p = password.value.trim();
       const errorBox = document.getElementById("errorMsg");
 
       if (!u || !p) {
@@ -82,8 +81,8 @@
 
         if (matched) {
           localStorage.setItem("loggedInUser", JSON.stringify(matched));
-          // ✅ Redirect to billing app on GitHub Pages
-          window.location.href = "https://pbbill.github.io/Finalpbbill/index.html";
+          // https://pbbill.github.io/Finalpbbill
+          window.location.href = "./index.html";
         } else {
           errorBox.textContent = "Invalid username or password.";
         }

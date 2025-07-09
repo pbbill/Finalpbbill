@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <title>Pradiksha Restro Bill</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script>
     const user = JSON.parse(localStorage.getItem("loggedInUser"));
     if (!user) {
-      window.location.href = "login.html"; // 👈 or use full GitHub URL if hosted separately
+      window.location.href = "./login.html";
     }
   </script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -74,6 +74,11 @@
   </style>
 </head>
 <body>
+ <button class="logout" onclick="logout()">Logout</button>
+  <div class="app-header">
+    <h1>🍽️ Panchabyanjan Billing System</h1>
+    <p id="userInfo"></p>
+  </div>
 <div class="bill-preview" id="printSection">
   <div style="text-align: center;">
     <img src="logo.png" alt="Panchabyanjan Logo" style="height: 60px; margin-bottom: 5px;">
@@ -156,7 +161,18 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+ const user = JSON.parse(localStorage.getItem("loggedInUser"));
+    if (user) {
+      document.getElementById("userInfo").textContent = `Logged in as: ${user.username} (${user.role})`;
+    }
+
+    function logout() {
+      localStorage.removeItem("loggedInUser");
+      window.location.href = "./login.html";
+    }
 </script>
+</body>
+</html>
 <!-- Part 2 continues below -->
 <script>
 const menu = {
