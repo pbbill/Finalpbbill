@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Panchabyanjan Billing App</title>
+  <title>Pradiksha Restro Bill</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -48,16 +48,19 @@
       cursor: pointer;
       z-index: 999;
     }
-    .qr-code { text-align: center; margin-top: 10px; }
-    .qr-code img { width: 80px; height: auto; display: block; margin: 0 auto; }
-    .qr-label { font-size: 0.75em; margin-top: 5px; text-align: center; }
-    #reportViewer, #kotLogViewer, #manageBillsTab, #manageKOTsTab, #manageUsersTab, #manageRolesTab {
+#reportViewer, #kotLogViewer, #manageBillsTab, #manageKOTsTab, #manageUsersTab, #manageRolesTab {
       display: none;
+      margin-top: 10px;
       border: 1px solid #ccc;
       padding: 10px;
-      margin-top: 15px;
+      max-height: 300px;
       overflow-x: auto;
+      font-size: 13px;
     }
+.qr-code { text-align: center; margin-top: 10px; }
+    .qr-code img { width: 80px; height: auto; margin: 0 auto; display: block; }
+    .qr-label { font-size: 0.75em; margin-top: 5px; text-align: center; }
+.no-print { display: block; }
     @media print {
       body {
         width: 203px;
