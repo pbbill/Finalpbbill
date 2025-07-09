@@ -355,26 +355,40 @@ function saveAndStoreBill(billNo, name, mobile) {
   generateKOT(billNo, items);
 }
 function generateKOT(billNo, items) {
-  db.ref("lastKOTNo").transaction(n => (n || 2000) + 1).then(res => {
+  const kotId = "KOT" + Date.now();
+  db.ref("lastKOTNo").transaction(curr => (curr || 2000) + 1).then(res => {
     const kotNo = res.snapshot.val();
     const kot = {
-      kotId: "KOT" + Date.now(),
+      kotId,
       kotNo,
       billNo,
       items,
       createdAt: new Date().toISOString()
     };
     db.ref("kots").push(kot);
+
+    const itemLines = items.map(i => {
+      const match = i.match(/^(.*?) \(x(\d+)\)/);
+      return match ? `• ${match[1]}  x${match[2]}` : `• ${i}`;
+    });
+
+    const kotText = `
+      <div style="width: 203px; font-size: 10px; font-family: monospace;">
+      <h3 style="text-align:center;">Panchabyanjan Restaurant and Caterer</h3>
+        <h3 style="text-align:center;">KOT</h3>
+        <p>KOT No: ${kotNo}</p>
+        <p>Bill No: ${billNo}</p>
+        <hr />
+        <pre>${itemLines.join("\n")}</pre>
+        <hr />
+        <p style="text-align:center;">Kitchen Copy</p>
+      </div>
+    `;
+
     const win = window.open("", "_blank");
-    win.document.write(`
-      <pre style="font-size:10px;width:203px;font-family:monospace">
-KOT No: ${kotNo}
-Bill No: ${billNo}
---------------------
-${items.map(i => "• " + i).join("\n")}
---------------------
-Kitchen Copy
-</pre>`);
+    win.document.write(kotText);
+    win.document.close();
+    win.focus();
     win.print();
   });
 }
