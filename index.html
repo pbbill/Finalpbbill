@@ -104,6 +104,7 @@
   <header>
     <h2>Panchabyanjan Billing System</h2>
     <button id="logoutBtn" onclick="logout()">Logout</button>
+   <p id="userInfo" style="text-align: center; font-weight: bold;"></p>
   </header>
 
   <div class="container">
@@ -212,17 +213,17 @@
     <button onclick="createRole()">➕ Add Role</button>
     <div id="roleList"></div>
   </div>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</script>
 <script>
   const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyBFLzo4TB3wvnUzzriyB3oY4Grw8FMPmXY",
+  authDomain: "panchabyanjan-billing-7ca90.firebaseapp.com",
+  databaseURL: "https://panchabyanjan-billing-7ca90-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "panchabyanjan-billing-7ca90",
+  storageBucket: "panchabyanjan-billing-7ca90.firebasestorage.app",
+  messagingSenderId: "892887228821",
+  appId: "1:892887228821:web:96af9e50282ddfc672569c"
+
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
@@ -253,6 +254,12 @@
       }
     });
   }
+  window.onload = function () {
+    filterMenu();
+    populateReprintDropdown();
+    checkPermissions();
+    loadRolesToDropdown();
+  };
 const menu = {
   "Shahi Paneer": 120,
       "Matar Paneer": 100,
@@ -332,13 +339,6 @@ const menu = {
       "Egg Chicken Fried Rice+4pcs Chilli Chicken": 180,
       "Egg Chicken Fried Rice+2pcs Chilli Chicken": 150
 };
-
-  window.onload = function () {
-    filterMenu();
-    populateReprintDropdown();
-    checkPermissions();
-    loadRolesToDropdown();
-  };
 
   function filterMenu() {
     const search = document.getElementById("menuSearch").value.toLowerCase();
@@ -563,6 +563,14 @@ const menu = {
       else {
         alert("Role added");
         loadRolesToDropdown();
+window.onload = function () {
+    const user = JSON.parse(localStorage.getItem("loggedInUser"));
+    if (user) {
+      const info = document.getElementById("userInfo");
+      if (info) {
+        info.textContent = `Logged in as: ${user.username} (${user.role})`;
+      }
+    }
       }
     });
   }
