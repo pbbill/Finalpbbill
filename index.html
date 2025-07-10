@@ -1,14 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panchabyanjan Billing System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 10px;
+      background: #ff6a00;
+      color: white;
+      position: relative;
+    }
+
+    #logoutBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 12px;
+      font-size: 14px;
+      background-color: #fff;
+      color: #333;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      width: 100%;
+      padding: 10px;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .left-panel, .right-panel {
+      flex: 1 1 420px;
+      max-width: 500px;
+      background: #f9f9f9;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+
+    h2 { text-align: center; }
+
+    input, select, button {
+      width: 100%;
+      margin: 5px 0;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      font-size: 13px;
+    }
+
+    .hidden { display: none; }
+
+    @media print {
+      body {
+        width: 203px;
+        font-size: 6px;
+        margin: 0;
+        padding: 0;
+      }
+      .no-print, header, .left-panel, .right-panel {
+        display: none !important;
+      }
+      th, td {
+        font-size: 6px;
+        padding: 2px;
+        border: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h2>Panchabyanjan Billing System</h2>
+    <button id="logoutBtn" onclick="logout()">Logout</button>
+  </header>
+
+  <div class="container">
+    <!-- Left Panel: Bill Preview + Reports -->
+    <div class="left-panel">
+      <div id="printSection">
+        <div style="text-align: center;">
+          <img src="logo.png" alt="Logo" style="height: 60px; margin-bottom: 5px;" />
+        </div>
+        <h3 style="text-align:center;">Panchabyanjan Restaurant and Caterer</h3>
+        <p style="text-align:center;">86 Tarafdarpara Rd, Kolkata-700151</p>
+        <p><strong>Bill No:</strong> <span id="billNumber">---</span></p>
+        <p id="customerDisplay"></p>
+        <table id="billTable">
+          <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p style="text-align:right;"><strong>Subtotal:</strong> ₹<span id="subtotal">0</span></p>
+        <p style="text-align:right;"><strong>Tax:</strong> ₹<span id="taxAmount">0</span></p>
+        <p style="text-align:right;"><strong>Total:</strong> ₹<span id="grandTotal">0</span></p>
+      </div>
+
+      <!-- Report Section -->
+      <div style="margin-top: 15px;">
+        <h4>Reprint Bill</h4>
+        <select id="reprintSelect"></select>
+        <button onclick="loadAndPrintBill()">Reprint</button>
+
+        <h4>Reports</h4>
+        <button onclick="previewBillHistory()">📄 Bill History</button>
+        <button onclick="previewItemSalesReport()">📦 Item Sales</button>
+        <button onclick="downloadHistoryByDateRangeCSV()">⬇️ Bill CSV</button>
+        <button onclick="downloadItemSalesReportCSV()">⬇️ Sales CSV</button>
+        <button onclick="downloadSettlementReportCSV()">⬇️ Settlement CSV</button>
+
+        <div id="reportViewer" class="no-print hidden"></div>
+      </div>
+    </div>
+    <!-- Right Panel: Billing Inputs + Admin Tools -->
+    <div class="right-panel">
+      <input type="text" id="customerName" placeholder="Customer Name" />
+      <input type="text" id="customerMobile" placeholder="Mobile Number" />
+      <input type="number" id="tax" placeholder="Tax % (optional)" />
+
+      <input type="text" id="menuSearch" placeholder="Search menu..." oninput="filterMenu()" />
+      <select id="menuSelect" size="6"></select>
+      <input type="number" id="qty" value="1" placeholder="Quantity" />
+
+      <button onclick="addItem()">Add Item</button>
+      <button onclick="addSpecialItem()">Add Special Item</button>
+      <button onclick="generateBill()">Generate Bill</button>
+      <button onclick="printAndReset()">🖨️ Print & Reset</button>
+      <button onclick="showSettlementTab()">💰 Settlement</button>
+
+      <div id="settlementTab" class="no-print hidden" style="margin-top: 10px;">
+        <h4>Settle a Bill</h4>
+        <select id="billSelect"></select>
+        <select id="settleMode">
+          <option value="">Select Mode</option>
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Card">Card</option>
+        </select>
+        <input type="text" id="txnId" placeholder="Transaction ID (optional)" />
+        <button onclick="settleSelectedBill()">✅ Confirm</button>
+      </div>
+
+      <!-- Admin Only Buttons (shown if role permits) -->
+      <div id="adminTools" style="margin-top: 15px;">
+        <h4>Admin Tools</h4>
+        <button onclick="showManageBillsTab()">📋 Manage Bills</button>
+        <button onclick="showManageKOTsTab()">🍽️ Manage KOTs</button>
+        <button onclick="showManageUsersTab()">👥 Manage Users</button>
+        <button onclick="showManageRolesTab()">🛠️ Manage Roles</button>
+      </div>
+
+      <!-- Save Edited Bill (when loaded from admin panel) -->
+      <button id="saveEditBtn" class="hidden" onclick="saveEditedBill()">💾 Save Changes</button>
+    </div>
+  </div> <!-- end container -->
+
+  <!-- Manager Sections -->
+  <div id="manageBillsTab" class="no-print hidden" style="padding: 10px;">
+    <h3>Manage Bills</h3>
+    <div id="billManager"></div>
+  </div>
+
+  <div id="manageKOTsTab" class="no-print hidden" style="padding: 10px;">
+    <h3>Manage KOTs</h3>
+    <div id="kotManager"></div>
+  </div>
+
+  <div id="manageUsersTab" class="no-print hidden" style="padding: 10px;">
+    <h3>Manage Users</h3>
+    <input type="text" id="newUsername" placeholder="Username" />
+    <input type="password" id="newPassword" placeholder="Password" />
+    <select id="assignRoleDropdown"></select>
+    <button onclick="createUser()">➕ Add User</button>
+    <div id="userList"></div>
+  </div>
+
+  <div id="manageRolesTab" class="no-print hidden" style="padding: 10px;">
+    <h3>Manage Roles & Permissions</h3>
+    <input type="text" id="newRoleName" placeholder="Role Name" />
+    <div id="permissionCheckboxes"></div>
+    <button onclick="createRole()">➕ Add Role</button>
+    <div id="roleList"></div>
+  </div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script>
   const firebaseConfig = {
-    apiKey: "AIzaSyBFLzo4TB3wvnUzzriyB3oY4Grw8FMPmXY",
-  authDomain: "panchabyanjan-billing-7ca90.firebaseapp.com",
-  databaseURL: "https://panchabyanjan-billing-7ca90-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "panchabyanjan-billing-7ca90",
-  storageBucket: "panchabyanjan-billing-7ca90.firebasestorage.app",
-  messagingSenderId: "892887228821",
-  appId: "1:892887228821:web:96af9e50282ddfc672569c"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
