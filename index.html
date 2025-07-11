@@ -2,64 +2,121 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Panchabyanjan Billing App</title>
+  <title>Panchabyanjan Billing System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     body {
       font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: crimson;
+      color: white;
+      padding: 4px;
+      font-size: 14px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .logout {
+      background: #fff;
+      color: crimson;
+      border: none;
+      padding: 6px 12px;
+      margin-right: 10px;
+      font-weight: bold;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .app-header {
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .main-content {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
       justify-content: center;
-      margin: 0;
       padding: 10px;
     }
+
     .left-panel, .right-panel {
-      flex: 1 1 320px;
-      max-width: 480px;
+      flex: 1 1 380px;
+      max-width: 600px;
+      padding: 10px;
     }
-    .bill-preview, .reports, .qr-code, .controls {
-      margin-bottom: 10px;
+
+    .left-panel {
+      order: 1;
     }
-    .app-header {
-      width: 100%;
-      text-align: center;
-      margin-bottom: 10px;
+
+    .right-panel {
+      order: 2;
     }
-    .logout {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      padding: 6px 12px;
-      font-size: 12px;
+
+    @media (max-width: 768px) {
+      .main-content {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .left-panel, .right-panel {
+        max-width: 100%;
+      }
     }
+
+    h2 {
+      margin: 0 0 10px;
+    }
+
     input, select, button {
+      margin-top: 6px;
       width: 100%;
       padding: 8px;
       font-size: 14px;
-      margin-top: 5px;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
       margin-top: 10px;
     }
+
     th, td {
       border: 1px solid #ccc;
-      padding: 4px;
-      text-align: left;
+      padding: 6px;
     }
+
+    #reportViewer, #kotLogViewer, #manageBillsTab, #manageKOTsTab, #manageUsersTab, #manageRolesTab {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .qr-code {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .qr-code img {
+      width: 80px;
+      height: auto;
+    }
+
     @media print {
       body {
         width: 203px;
         font-size: 6px;
         margin: 0;
-        padding: 0;
       }
-      .no-print, input, select, button {
+      .no-print {
         display: none !important;
       }
       th, td {
@@ -71,42 +128,59 @@
   </style>
 </head>
 <body>
-  <button class="logout" onclick="logout()">Logout</button>
+  <div class="topbar no-print">
+    <button class="logout" onclick="logout()">Logout</button>
+  </div>
   <div class="app-header">
-    <h2>Panchabyanjan Billing System</h2>
+    <h2>🍽️ Panchabyanjan Billing System</h2>
     <p id="userInfo"></p>
   </div>
 
-  <div class="left-panel">
-    <div class="bill-preview" id="printSection">
-      <div style="text-align: center;">
-        <img src="logo.png" style="height: 50px;" alt="Logo">
-        <h3>Panchabyanjan Restaurant and Caterer</h3>
-        <p>86 Tarafdarpara Rd, Kolkata-700151</p>
+  <div class="main-content">
+    <!-- Left Panel: Bill Preview + Reports + Reprint -->
+    <div class="left-panel no-print">
+      <div id="printSection">
+        <div style="text-align: center;">
+          <img src="logo.png" alt="Logo" style="height: 60px; margin-bottom: 5px;" />
+          <h3>Panchabyanjan Restaurant and Caterer</h3>
+          <p>86 Tarafdarpara Rd, Kolkata-700151</p>
+        </div>
+        <p><strong>Bill No:</strong> <span id="billNumber">---</span></p>
+        <p id="customerDisplay"></p>
+        <table id="billTable">
+          <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p style="text-align:right;"><strong>Subtotal:</strong> ₹<span id="subtotal">0</span></p>
+        <p style="text-align:right;"><strong>Tax:</strong> ₹<span id="taxAmount">0</span></p>
+        <p style="text-align:right;"><strong>Total:</strong> ₹<span id="grandTotal">0</span></p>
+        <p style="text-align:center; font-size: 0.75em;">Thank you for your order!<br />WE ACCEPT PARTY BOOKING</p>
       </div>
-      <p><strong>Bill No:</strong> <span id="billNumber">---</span></p>
-      <p id="customerDisplay"></p>
-      <table id="billTable"><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody></tbody></table>
-      <p style="text-align:right;"><strong>Subtotal:</strong> ₹<span id="subtotal">0</span></p>
-      <p style="text-align:right;"><strong>Tax:</strong> ₹<span id="taxAmount">0</span></p>
-      <p style="text-align:right;"><strong>Total:</strong> ₹<span id="grandTotal">0</span></p>
+
+      <div class="qr-code">
+        <div class="qr-label">Scan to Pay</div>
+        <img src="qr.jpeg" alt="UPI QR Code" />
+      </div>
+
+      <div>
+        <h4>🔁 Reprint Bill</h4>
+        <select id="reprintSelect"></select>
+        <button onclick="loadAndPrintBill()">Reprint</button>
+      </div>
+
+      <div>
+        <h4>📄 Reports</h4>
+        <button onclick="downloadHistoryByDateRangeCSV()">Download Bill History</button>
+        <button onclick="downloadItemSalesReportCSV()">Download Item Sales Report</button>
+        <button onclick="downloadSettlementReportCSV()">Download Settlement Report</button>
+        <button onclick="previewBillHistory()">🔍 Preview Bill History</button>
+        <button onclick="previewItemSalesReport()">📦 Preview Item Sales</button>
+        <button onclick="viewKOTLog()">📑 KOT Log</button>
+      </div>
     </div>
 
-    <div class="reports no-print">
-      <h4>🔁 Reprint & Reports</h4>
-      <select id="reprintSelect"></select>
-      <button onclick="loadAndPrintBill()">Reprint</button>
-      <button onclick="previewBillHistory()">🔍 Preview Bill History</button>
-      <button onclick="previewItemSalesReport()">📦 Preview Item Sales</button>
-      <button onclick="viewKOTLog()">📑 KOT Log</button>
-      <button onclick="downloadHistoryByDateRangeCSV()">⬇️ Bill History CSV</button>
-      <button onclick="downloadItemSalesReportCSV()">⬇️ Item Sales CSV</button>
-      <button onclick="downloadSettlementReportCSV()">⬇️ Settlement Report</button>
-    </div>
-  </div>
-
-  <div class="right-panel">
-    <div class="controls no-print">
+    <!-- Right Panel: Inputs -->
+    <div class="right-panel no-print">
       <input type="text" id="customerName" placeholder="Customer Name" />
       <input type="text" id="customerMobile" placeholder="Mobile Number" />
       <input type="number" id="tax" placeholder="Tax % (optional)" />
@@ -117,29 +191,39 @@
       <button onclick="addSpecialItem()">Add Special Item</button>
       <button onclick="generateBill()">Generate Bill</button>
       <button onclick="printAndReset()">Print Bill</button>
-      <button onclick="showSettlementTab()">💰 Settlement</button>
-      <button onclick="showManageBillsTab()">🧾 Manage Bills</button>
-      <button onclick="showManageKOTsTab()">🧾 Manage KOTs</button>
-      <button onclick="showManageUsersTab()">👤 Manage Users</button>
-      <button onclick="showManageRolesTab()">🔑 Manage Roles</button>
-    </div>
+      <button onclick="showSettlementTab()">Settlement</button>
+      <button onclick="showManageBillsTab()">Manage Bills</button>
+      <button onclick="showManageKOTsTab()">Manage KOTs</button>
+      <button onclick="showManageUsersTab()">Manage Users</button>
+      <button onclick="showManageRolesTab()">Manage Roles</button>
 
-    <div id="settlementTab" class="no-print" style="display: none; margin-top: 15px;">
-      <h3>Settle a Bill</h3>
-      <select id="billSelect"></select>
-      <select id="settleMode">
-        <option value="">Payment Mode</option>
-        <option value="Cash">Cash</option>
-        <option value="UPI">UPI</option>
-        <option value="Card">Card</option>
-      </select>
-      <input type="text" id="txnId" placeholder="Transaction ID (optional)" />
-      <button onclick="settleSelectedBill()">Confirm Settlement</button>
+      <div id="settlementTab" style="display:none;">
+        <h4>💳 Settle Bill</h4>
+        <select id="billSelect"></select>
+        <select id="settleMode">
+          <option value="">Payment Mode</option>
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Card">Card</option>
+        </select>
+        <input type="text" id="txnId" placeholder="Transaction ID (optional)" />
+        <button onclick="settleSelectedBill()">Confirm Settlement</button>
+      </div>
     </div>
   </div>
+
+  <!-- Tabs / Views (Initially Hidden) -->
+  <div id="reportViewer" class="no-print"></div>
+  <div id="kotLogViewer" class="no-print"></div>
+  <div id="manageBillsTab" class="no-print"></div>
+  <div id="manageKOTsTab" class="no-print"></div>
+  <div id="manageUsersTab" class="no-print"></div>
+  <div id="manageRolesTab" class="no-print"></div>
+
+  <!-- Firebase Init -->
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyBFLzo4TB3wvnUzzriyB3oY4Grw8FMPmXY",
+       apiKey: "AIzaSyBFLzo4TB3wvnUzzriyB3oY4Grw8FMPmXY",
   authDomain: "panchabyanjan-billing-7ca90.firebaseapp.com",
   databaseURL: "https://panchabyanjan-billing-7ca90-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "panchabyanjan-billing-7ca90",
@@ -149,353 +233,265 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    
-    const billItems = [];
-    let editingBillKey = null;
-
-    const menu = {
-      "Shahi Paneer": 120, "Matar Paneer": 100, "Aloo Posto": 70, "Kasha Aloo Dum": 50, "Moong Dal": 60,
-      "Paneer Butter Masala": 140, "Paneer Bhurjee": 120, "Fish Finger (Bhetki) - 5pcs": 160, "Fish Fry (Bhetki)": 180,
-      "Dry Chilli Chicken - 8pcs": 150, "Chicken Finger - 6pcs": 120, "Chicken Pakora - 6pcs": 100, "Paneer Pakora - 6pcs": 120,
-      "Egg Chicken Fried Rice": 140, "Veg Fried Rice": 80, "Egg Fried Rice": 100, "Chicken Fried Rice": 120,
-      "Basanti Polao": 80, "Steamed Rice - Basmati": 70, "Steamed Rice - Plain": 50, "Roti per pc": 6, "Tawa Paratha per pc": 12,
-      "Green Salad": 50, "Onion Salad": 30, "Chicken Thali": 120, "Fish Thali (Rohu)": 100, "Fish Thali (Katla)": 100,
-      "Egg Thali": 80, "Veg Thali": 60, "Mutton Thali": 220, "Chilli Chicken - 4pc": 80, "Chilli Chicken - 8pc": 150,
-      "Schezwan Chicken - 4pc": 80, "Schezwan Chicken - 8pc": 150, "Hot Garlic Chicken - 4pc": 80, "Hot Garlic Chicken - 8pc": 150,
-      "Chicken Kasha - 2pc": 70, "Chicken Kasha - 4pc": 130, "Shahi Chicken - 2pc": 90, "Shahi Chicken - 4pc": 160,
-      "Egg Kasha - 1pc": 30, "Egg Kasha - 2pc": 50, "Rohu Fish Curry - 1pc": 60, "Rohu Fish Curry - 2pc": 100,
-      "Katla Fish Curry - 1pc": 90, "Katla Fish Curry - 2pc": 170, "Mutton Kasha - 2pc": 160, "Mutton Kasha - 4pc": 300,
-      "4pcs Roti+4pcs Chicken Kasha+Salad": 130, "4pcs Roti+2pcs Chicken Kasha+Salad": 90, "4pcs Roti+4pcs Chilli Chicken": 120,
-      "4pcs Roti+2pcs Chilli Chicken": 90, "4pcs Roti+Paneer": 120, "3pcs Tawa Paratha+Paneer": 120,
-      "3pcs Tawa Paratha+4pcs Chicken Kasha+Salad": 150, "3pcs Tawa Paratha+2pcs Chicken Kasha+Salad": 120,
-      "3pcs Tawa Paratha+4pcs Chilli Chicken": 120, "3pcs Tawa Paratha+2pcs Chilli Chicken": 90,
-      "Basanti Polao+4pcs Chicken Kasha": 150, "Basanti Polao+2pcs Chicken Kasha": 100, "Basanti Polao+2pcs Egg Kasha": 100,
-      "Basanti Polao+Paneer": 120, "Basanti Polao+4pcs Mutton Kasha": 320, "Basanti Polao+2pcs Mutton Kasha": 220,
-      "Veg Fried Rice+4pcs Chicken Kasha": 150, "Veg Fried Rice+2pcs Chicken Kasha": 100,
-      "Veg Fried Rice+4pcs Chilli Chicken": 140, "Veg Fried Rice+2pcs Chilli Chicken": 100, "Veg Fried Rice+Paneer": 120,
-      "Egg Fried Rice+4pcs Chicken Kasha": 160, "Egg Fried Rice+2pcs Chicken Kasha": 120,
-      "Egg Fried Rice+4pcs Chilli Chicken": 150, "Egg Fried Rice+2pcs Chilli Chicken": 120,
-      "Egg Chicken Fried Rice+4pcs Chicken Kasha": 180, "Egg Chicken Fried Rice+2pcs Chicken Kasha": 150,
-      "Egg Chicken Fried Rice+4pcs Chilli Chicken": 180, "Egg Chicken Fried Rice+2pcs Chilli Chicken": 150
-    };
-
-    function filterMenu() {
-      const search = document.getElementById("menuSearch").value.toLowerCase();
-      const menuSelect = document.getElementById("menuSelect");
-      menuSelect.innerHTML = "";
-      Object.keys(menu).forEach(item => {
-        if (item.toLowerCase().includes(search)) {
-          const opt = document.createElement("option");
-          opt.value = item;
-          opt.textContent = `${item} - ₹${menu[item]}`;
-          menuSelect.appendChild(opt);
-        }
-      });
-    }
-
-    function addItem() {
-      const item = document.getElementById("menuSelect").value;
-      const qty = parseInt(document.getElementById("qty").value);
-      if (!item || !qty) return alert("Select item and quantity");
-      billItems.push({ name: item, qty, rate: menu[item] });
-      renderBill();
-    }
-
-    function addSpecialItem() {
-      const name = prompt("Enter item name:");
-      const rate = parseFloat(prompt("Enter rate:"));
-      const qty = parseInt(prompt("Enter qty:"));
-      if (!name || !rate || !qty) return;
-      billItems.push({ name, qty, rate });
-      renderBill();
-    }
-
-    function renderBill() {
-      const tbody = document.querySelector("#billTable tbody");
-      tbody.innerHTML = "";
-      let subtotal = 0;
-      billItems.forEach(({ name, qty, rate }, index) => {
-        const total = qty * rate;
-        subtotal += total;
-        tbody.innerHTML += `
-          <tr>
-            <td>${name}</td>
-            <td>${qty}</td>
-            <td>${rate}</td>
-            <td>${total.toFixed(2)}</td>
-          </tr>`;
-      });
-      const tax = parseFloat(document.getElementById("tax").value) || 0;
-      const taxAmt = subtotal * tax / 100;
-      const total = subtotal + taxAmt;
-      document.getElementById("subtotal").innerText = subtotal.toFixed(2);
-      document.getElementById("taxAmount").innerText = taxAmt.toFixed(2);
-      document.getElementById("grandTotal").innerText = total.toFixed(2);
-    }
-
-    function generateBill() {
-      const name = document.getElementById("customerName").value;
-      const mobile = document.getElementById("customerMobile").value;
-      if (!name || !mobile) return alert("Customer info required");
-      document.getElementById("customerDisplay").innerText = name + " | " + mobile;
-
-      db.ref("lastBillNo").transaction(curr => (curr || 1000) + 1).then(res => {
-        const billNo = res.snapshot.val();
-        document.getElementById("billNumber").innerText = billNo;
-        saveAndStoreBill(billNo, name, mobile);
-      }).catch(() => {
-        const localBill = parseInt(localStorage.getItem("lastBill") || "1000") + 1;
-        localStorage.setItem("lastBill", localBill);
-        document.getElementById("billNumber").innerText = localBill;
-        saveAndStoreBill(localBill, name, mobile);
-      });
-    }
-
-    function saveAndStoreBill(billNo, name, mobile) {
-      const tax = parseFloat(document.getElementById("tax").value) || 0;
-      let subtotal = 0;
-      const items = billItems.map(i => {
-        const total = i.qty * i.rate;
-        subtotal += total;
-        return `${i.name} (x${i.qty}) = ₹${total}`;
-      });
-      const taxAmt = subtotal * tax / 100;
-      const grandTotal = subtotal + taxAmt;
-      const bill = {
-        billNo,
-        date: new Date().toISOString(),
-        name,
-        mobile,
-        items,
-        subtotal,
-        tax: taxAmt,
-        total: grandTotal,
-        paymentMode: "Unpaid"
-      };
-      const history = JSON.parse(localStorage.getItem("billHistory") || "[]");
-      history.push(bill);
-      localStorage.setItem("billHistory", JSON.stringify(history));
-      db.ref("bills").push(bill);
-    }
-
-    function printAndReset() {
-      window.onafterprint = () => {
-        billItems.length = 0;
-        document.getElementById("customerName").value = "";
-        document.getElementById("customerMobile").value = "";
-        document.getElementById("tax").value = "";
-        document.getElementById("menuSearch").value = "";
-        document.getElementById("qty").value = 1;
-        document.getElementById("billNumber").innerText = "---";
-        document.getElementById("customerDisplay").innerText = "";
-        document.querySelector("#billTable tbody").innerHTML = "";
-        document.getElementById("subtotal").innerText = "0";
-        document.getElementById("taxAmount").innerText = "0";
-        document.getElementById("grandTotal").innerText = "0";
-        filterMenu();
-        populateReprintDropdown();
-      };
-      window.print();
-    }
-
-    function populateReprintDropdown() {
-      db.ref("bills").once("value", snap => {
-        const all = snap.val();
-        const select = document.getElementById("reprintSelect");
-        select.innerHTML = "<option value=''>Select Bill</option>";
-        Object.entries(all || {}).forEach(([key, bill]) => {
-          select.innerHTML += `<option value="${key}">#${bill.billNo} - ${bill.name} - ${bill.date?.split("T")[0]}</option>`;
-        });
-      });
-    }
-
-    function loadAndPrintBill() {
-      const key = document.getElementById("reprintSelect").value;
-      if (!key) return alert("Select a bill to reprint");
-      db.ref("bills/" + key).once("value", snap => {
-        const bill = snap.val();
-        if (!bill) return alert("Bill not found");
-        document.getElementById("billNumber").innerText = bill.billNo;
-        document.getElementById("customerDisplay").innerText = bill.name + " | " + bill.mobile;
-        const tbody = document.querySelector("#billTable tbody");
-        tbody.innerHTML = "";
-        (bill.items || []).forEach(line => {
-          const match = line.match(/^(.*?) \(x(\d+)\) = ₹(\d+(?:\.\d+)?)/);
-          if (match) {
-            const name = match[1], qty = match[2], rate = (parseFloat(match[3]) / parseInt(qty)).toFixed(2);
-            const total = parseFloat(match[3]);
-            tbody.innerHTML += `<tr><td>${name}</td><td>${qty}</td><td>${rate}</td><td>${total}</td></tr>`;
-          }
-        });
-        document.getElementById("subtotal").innerText = bill.subtotal.toFixed(2);
-        document.getElementById("taxAmount").innerText = bill.tax.toFixed(2);
-        document.getElementById("grandTotal").innerText = bill.total.toFixed(2);
-        setTimeout(() => window.print(), 500);
-      });
-    }
-
-    window.onload = function () {
-      const user = JSON.parse(localStorage.getItem("loggedInUser"));
-      if (user && document.getElementById("userInfo")) {
-        document.getElementById("userInfo").textContent = `Logged in as: ${user.username} (${user.role})`;
-      }
-      filterMenu();
-      populateReprintDropdown();
-    };
-
-    function logout() {
-      localStorage.removeItem("loggedInUser");
-      window.location.href = "https://pbbill.github.io/Finalpbbill/login.html";
-    }
   </script>
-<script>
-  // === SETTLEMENT ===
-  function showSettlementTab() {
-    document.getElementById("settlementTab").style.display = "block";
-    db.ref("bills").once("value", snapshot => {
-      const allBills = snapshot.val();
-      const select = document.getElementById("billSelect");
-      select.innerHTML = "<option value=''>Select Bill</option>";
-      Object.entries(allBills || {}).forEach(([key, bill]) => {
-        if (!bill.paymentMode || bill.paymentMode === "Unpaid") {
-          select.innerHTML += `<option value="${key}">Bill#${bill.billNo} - ₹${bill.total} (${bill.name})</option>`;
-        }
-      });
-    });
-  }
+  <script>
+// ===== MENU =====
+const menu = {
+  "Shahi Paneer": 120,
+  "Matar Paneer": 100,
+  "Aloo Posto": 70,
+  "Kasha Aloo Dum": 50,
+  "Moong Dal": 60,
+  "Paneer Butter Masala": 140,
+  "Chicken Pakora - 6pcs": 100,
+  "Fish Fry": 180,
+  "Veg Fried Rice": 80,
+  "Chicken Fried Rice": 120,
+  "Basanti Polao": 90,
+  "Steamed Rice": 60,
+  "Roti": 10,
+  "Tawa Paratha": 15,
+  "Green Salad": 30,
+  "Mutton Kasha": 220,
+  "Egg Curry": 50
+};
 
-  function settleSelectedBill() {
-    const key = document.getElementById("billSelect").value;
-    const mode = document.getElementById("settleMode").value;
-    const txnId = document.getElementById("txnId").value;
-    if (!key || !mode) return alert("Select bill and mode");
-    db.ref("bills/" + key).update({ paymentMode: mode, transactionId: txnId || "" }, err => {
-      if (err) alert("Error saving settlement");
-      else {
-        alert("Settlement saved");
-        showSettlementTab();
+const billItems = [];
+
+function filterMenu() {
+  const search = document.getElementById("menuSearch").value.toLowerCase();
+  const menuSelect = document.getElementById("menuSelect");
+  menuSelect.innerHTML = "";
+  Object.keys(menu).forEach(item => {
+    if (item.toLowerCase().includes(search)) {
+      const opt = document.createElement("option");
+      opt.value = item;
+      opt.textContent = `${item} - ₹${menu[item]}`;
+      menuSelect.appendChild(opt);
+    }
+  });
+}
+
+function addItem() {
+  const item = document.getElementById("menuSelect").value;
+  const qty = parseInt(document.getElementById("qty").value);
+  if (!item || !qty) return alert("Select item and quantity");
+  billItems.push({ name: item, qty, rate: menu[item] });
+  renderBill();
+}
+
+function addSpecialItem() {
+  const name = prompt("Enter item name:");
+  const rate = parseFloat(prompt("Enter rate:"));
+  const qty = parseInt(prompt("Enter qty:"));
+  if (!name || !rate || !qty) return;
+  billItems.push({ name, qty, rate });
+  renderBill();
+}
+
+function renderBill() {
+  const tbody = document.querySelector("#billTable tbody");
+  tbody.innerHTML = "";
+  let subtotal = 0;
+
+  billItems.forEach(({ name, qty, rate }, index) => {
+    const total = qty * rate;
+    subtotal += total;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${name}</td>
+        <td>
+          <input type="number" value="${qty}" min="1" style="width: 50px;" 
+                 onchange="updateItemQty(${index}, this.value)" />
+        </td>
+        <td>${rate}</td>
+        <td>${total.toFixed(2)}</td>
+        <td><button onclick="removeItem(${index})">❌</button></td>
+      </tr>
+    `;
+  });
+
+  const tax = parseFloat(document.getElementById("tax").value) || 0;
+  const taxAmt = subtotal * tax / 100;
+  const total = subtotal + taxAmt;
+
+  document.getElementById("subtotal").innerText = subtotal.toFixed(2);
+  document.getElementById("taxAmount").innerText = taxAmt.toFixed(2);
+  document.getElementById("grandTotal").innerText = total.toFixed(2);
+}
+
+function updateItemQty(index, newQty) {
+  const qty = parseInt(newQty);
+  if (!qty || qty < 1) return;
+  billItems[index].qty = qty;
+  renderBill();
+}
+
+function removeItem(index) {
+  if (confirm("Remove this item?")) {
+    billItems.splice(index, 1);
+    renderBill();
+  }
+}
+</script>
+<script>
+// === BILL GENERATION & SAVE ===
+function generateBill() {
+  const name = document.getElementById("customerName").value;
+  const mobile = document.getElementById("customerMobile").value;
+  if (!name || !mobile) return alert("Customer info required");
+
+  document.getElementById("customerDisplay").innerText = name + " | " + mobile;
+
+  db.ref("lastBillNo").transaction(curr => (curr || 1000) + 1).then(res => {
+    const billNo = res.snapshot.val();
+    document.getElementById("billNumber").innerText = billNo;
+    saveAndStoreBill(billNo, name, mobile);
+  }).catch(() => {
+    const localBill = parseInt(localStorage.getItem("lastBill") || "1000") + 1;
+    localStorage.setItem("lastBill", localBill);
+    document.getElementById("billNumber").innerText = localBill;
+    saveAndStoreBill(localBill, name, mobile);
+  });
+}
+
+function saveAndStoreBill(billNo, name, mobile) {
+  const tax = parseFloat(document.getElementById("tax").value) || 0;
+  let subtotal = 0;
+  const items = billItems.map(i => {
+    const total = i.qty * i.rate;
+    subtotal += total;
+    return `${i.name} (x${i.qty}) = ₹${total}`;
+  });
+  const taxAmt = subtotal * tax / 100;
+  const grandTotal = subtotal + taxAmt;
+
+  const bill = {
+    billNo,
+    date: new Date().toISOString(),
+    name,
+    mobile,
+    items,
+    subtotal,
+    tax: taxAmt,
+    total: grandTotal,
+    paymentMode: "Unpaid"
+  };
+
+  db.ref("bills").push(bill);
+  generateKOT(billNo, items);
+}
+
+// === KOT AUTO-GENERATION ===
+function generateKOT(billNo, items) {
+  db.ref("lastKOTNo").transaction(curr => (curr || 2000) + 1).then(res => {
+    const kotNo = res.snapshot.val();
+    const kot = {
+      kotNo,
+      billNo,
+      items,
+      createdAt: new Date().toISOString()
+    };
+    db.ref("kots").push(kot);
+  });
+}
+
+// === PRINT & RESET ===
+function printAndReset() {
+  window.onafterprint = () => {
+    billItems.length = 0;
+    document.getElementById("customerName").value = "";
+    document.getElementById("customerMobile").value = "";
+    document.getElementById("tax").value = "";
+    document.getElementById("menuSearch").value = "";
+    document.getElementById("qty").value = 1;
+    document.getElementById("billNumber").innerText = "---";
+    document.getElementById("customerDisplay").innerText = "";
+    document.querySelector("#billTable tbody").innerHTML = "";
+    document.getElementById("subtotal").innerText = "0";
+    document.getElementById("taxAmount").innerText = "0";
+    document.getElementById("grandTotal").innerText = "0";
+    filterMenu();
+    populateReprintDropdown();
+  };
+  window.print();
+}
+
+// === REPRINT ===
+function populateReprintDropdown() {
+  db.ref("bills").once("value", snap => {
+    const all = snap.val();
+    const select = document.getElementById("reprintSelect");
+    select.innerHTML = "<option value=''>Select Bill</option>";
+    Object.entries(all || {}).forEach(([key, bill]) => {
+      select.innerHTML += `<option value="${key}">#${bill.billNo} - ${bill.name} - ${bill.date?.split("T")[0]}</option>`;
+    });
+  });
+}
+
+function loadAndPrintBill() {
+  const key = document.getElementById("reprintSelect").value;
+  if (!key) return alert("Select a bill to reprint");
+  db.ref("bills/" + key).once("value", snap => {
+    const bill = snap.val();
+    if (!bill) return alert("Bill not found");
+
+    document.getElementById("billNumber").innerText = bill.billNo;
+    document.getElementById("customerDisplay").innerText = bill.name + " | " + bill.mobile;
+
+    const tbody = document.querySelector("#billTable tbody");
+    tbody.innerHTML = "";
+    (bill.items || []).forEach(line => {
+      const match = line.match(/^(.*?) \(x(\d+)\) = ₹(\d+(?:\.\d+)?)/);
+      if (match) {
+        const name = match[1], qty = match[2], rate = (parseFloat(match[3]) / parseInt(qty)).toFixed(2);
+        const total = parseFloat(match[3]);
+        tbody.innerHTML += `<tr><td>${name}</td><td>${qty}</td><td>${rate}</td><td>${total}</td></tr>`;
       }
     });
-  }
 
-  // === CSV EXPORTS ===
-  function downloadCSV(data, filename) {
-    const csv = data.map(r => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-  }
+    document.getElementById("subtotal").innerText = bill.subtotal.toFixed(2);
+    document.getElementById("taxAmount").innerText = bill.tax.toFixed(2);
+    document.getElementById("grandTotal").innerText = bill.total.toFixed(2);
 
-  function downloadHistoryByDateRangeCSV() {
-    const from = prompt("From date (YYYY-MM-DD)");
-    const to = prompt("To date (YYYY-MM-DD)");
-    db.ref("bills").once("value", snap => {
-      const all = snap.val();
-      const rows = [["Bill No", "Date", "Customer", "Mobile", "Total"]];
-      Object.values(all || {}).forEach(b => {
-        const d = b.date?.split("T")[0];
-        if (d >= from && d <= to) {
-          rows.push([b.billNo, b.date, b.name, b.mobile, b.total]);
-        }
+    setTimeout(() => window.print(), 500);
+  });
+}
+
+// === ROLE-BASED FEATURE VISIBILITY ===
+const featuresByRole = {
+  admin: ["billing", "reports", "settlement", "manageUsers", "manageRoles"],
+  staff: ["billing", "reports"],
+  kitchen: ["kds"]
+};
+
+const user = JSON.parse(localStorage.getItem("loggedInUser"));
+if (!user) window.location.href = "login.html";
+const role = user.role;
+const allowed = featuresByRole[role] || [];
+
+const allButtons = {
+  billing: ["addItem", "addSpecialItem", "generateBill", "printAndReset", "menuSelect"],
+  reports: ["downloadHistoryByDateRangeCSV", "downloadItemSalesReportCSV", "downloadSettlementReportCSV", "previewBillHistory", "previewItemSalesReport", "reprintSelect", "loadAndPrintBill"],
+  settlement: ["showSettlementTab"],
+  manageUsers: ["showManageUsersTab"],
+  manageRoles: ["showManageRolesTab"]
+};
+
+window.onload = function () {
+  document.getElementById("userInfo").textContent = `Logged in as: ${user.username} (${role})`;
+  filterMenu();
+  populateReprintDropdown();
+
+  Object.keys(allButtons).forEach(section => {
+    if (!allowed.includes(section)) {
+      allButtons[section].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
       });
-      downloadCSV(rows, `bill_history_${from}_to_${to}.csv`);
-    });
-  }
-
-  function downloadItemSalesReportCSV() {
-    const from = prompt("From date (YYYY-MM-DD)");
-    const to = prompt("To date (YYYY-MM-DD)");
-    db.ref("bills").once("value", snap => {
-      const all = snap.val();
-      const itemsMap = {};
-      Object.values(all || {}).forEach(b => {
-        const d = b.date?.split("T")[0];
-        if (d >= from && d <= to) {
-          (b.items || []).forEach(line => {
-            const match = line.match(/^(.*?) \(x(\d+)\) = ₹(\d+(\.\d+)?)/);
-            if (match) {
-              const name = match[1];
-              const qty = parseInt(match[2]);
-              const amt = parseFloat(match[3]);
-              if (!itemsMap[name]) itemsMap[name] = { qty: 0, amt: 0 };
-              itemsMap[name].qty += qty;
-              itemsMap[name].amt += amt;
-            }
-          });
-        }
-      });
-      const rows = [["Item", "Quantity", "Amount"]];
-      Object.entries(itemsMap).forEach(([name, { qty, amt }]) => {
-        rows.push([name, qty, amt.toFixed(2)]);
-      });
-      downloadCSV(rows, `item_sales_${from}_to_${to}.csv`);
-    });
-  }
-
-  function downloadSettlementReportCSV() {
-    const from = prompt("From date (YYYY-MM-DD)");
-    const to = prompt("To date (YYYY-MM-DD)");
-    db.ref("bills").once("value", snapshot => {
-      const allBills = snapshot.val();
-      if (!allBills) return alert("No bills found");
-
-      const rows = [["Bill No", "Date", "Customer", "Total", "Payment Mode", "Transaction ID"]];
-      const summary = { Cash: 0, UPI: 0, Card: 0 };
-      let totalSettled = 0;
-
-      Object.values(allBills).forEach(b => {
-        const date = b.date?.split("T")[0];
-        if (date >= from && date <= to && b.paymentMode && b.paymentMode !== "Unpaid") {
-          const mode = b.paymentMode;
-          const amt = parseFloat(b.total) || 0;
-          if (summary[mode] !== undefined) summary[mode] += amt;
-          totalSettled += amt;
-          rows.push([b.billNo, b.date, b.name, amt.toFixed(2), mode, b.transactionId || ""]);
-        }
-      });
-
-      rows.push([], ["Summary"]);
-      Object.entries(summary).forEach(([k, v]) => rows.push([k, v.toFixed(2)]));
-      rows.push(["Total Settled", totalSettled.toFixed(2)]);
-      downloadCSV(rows, `settlement_report_${from}_to_${to}.csv`);
-    });
-  }
-
-  // === KOT LOG (Optional) ===
-  function viewKOTLog() {
-    const from = prompt("From date (YYYY-MM-DD)");
-    const to = prompt("To date (YYYY-MM-DD)");
-    db.ref("kots").once("value", snap => {
-      const all = snap.val();
-      const rows = [["KOT No", "Bill No", "Items", "Created"]];
-      Object.values(all || {}).forEach(k => {
-        const d = k.createdAt?.split("T")[0];
-        if (d >= from && d <= to) {
-          rows.push([k.kotNo, k.billNo, (k.items || []).join(" / "), k.createdAt]);
-        }
-      });
-      const viewer = document.getElementById("kotLogViewer");
-      viewer.innerHTML = `<h3>KOT Log</h3>`;
-      const table = document.createElement("table");
-      table.innerHTML = rows.map((r, i) =>
-        `<tr>${r.map(col =>
-          `<${i === 0 ? "th" : "td"}>${col}</${i === 0 ? "th" : "td"}>`).join("")
-        }</tr>`).join("");
-      viewer.appendChild(table);
-      viewer.style.display = "block";
-    });
-  }
-
-  // === Permissions (placeholder - implement role checks later) ===
-  function showManageUsersTab() {
-    alert("Manage Users coming soon (admin-only)");
-  }
-
-  function showManageRolesTab() {
-    alert("Manage Roles coming soon (admin-only)");
-  }
+    }
+  });
+};
 </script>
-</body>
-</html>
+
